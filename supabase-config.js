@@ -10,7 +10,7 @@
 // place dans schema.sql) qui protège réellement vos données.
 // Ne mettez jamais ici la clé "service_role".
 
-const SUPABASE_URL = "https://VOTRE-PROJET.supabase.co";
-const SUPABASE_ANON_KEY = "VOTRE_CLE_ANON_PUBLIC";
+const SUPABASE_URL = "https://extewbvqfcgdxrrtlycy.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV4dGV3YnZxZmNnZHhycnRseWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODYzNDc5OTcsImV4cCI6MjEwMTkyMzk5N30.88bdVl1axvASXHICWpdY1zXuFzu-2QrVoVnwG0-g8v4";
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
