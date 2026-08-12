@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Coup De Coeur — Suivi des contacts</title>
+<title>Coup de cœur — Suivi des contacts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,10 +15,8 @@
 <div id="login-screen">
   <div class="login-card">
     <div class="login-brand">
-      <div class="logo-mark">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.6-10-9.3C.4 8 2 4.5 5.6 4.5c2 0 3.6 1.1 4.4 2.7.8-1.6 2.4-2.7 4.4-2.7C18 4.5 19.6 8 20 11.7 17.5 16.4 12 21 12 21z"/></svg>
-      </div>
-      <span>Coup De Coeur</span>
+      <img src="logo-icon.png" alt="Coup de cœur">
+      <span class="brand-font">Coup de cœur</span>
     </div>
     <div class="field" style="margin-bottom:12px;">
       <label>Email</label>
@@ -35,16 +36,19 @@
 
   <div class="topbar">
     <div class="brand">
-      <div class="logo-mark">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21s-7.5-4.6-10-9.3C.4 8 2 4.5 5.6 4.5c2 0 3.6 1.1 4.4 2.7.8-1.6 2.4-2.7 4.4-2.7C18 4.5 19.6 8 20 11.7 17.5 16.4 12 21 12 21z"/></svg>
-      </div>
-      <span>Coup De Coeur</span>
+      <img src="logo-icon.png" alt="Coup de cœur">
+      <span class="brand-font">Coup de cœur</span>
     </div>
     <div class="nav-tabs">
-      <button class="tab-btn active" id="tab-dashboard" onclick="switchTab('dashboard')">Tableau de bord</button>
-      <button class="tab-btn" id="tab-contacts" onclick="switchTab('contacts')">Contacts</button>
-      <button class="btn-primary" onclick="openContactForm()">+ Ajouter un contact</button>
-      <button class="btn-secondary" onclick="handleLogout()">Déconnexion</button>
+      <div class="tab-group">
+        <button class="tab-btn" id="tab-adherents" onclick="switchTab('adherents')">Adhérents</button>
+        <button class="tab-btn" id="tab-contacts" onclick="switchTab('contacts')">Contacts</button>
+        <button class="tab-btn active" id="tab-dashboard" onclick="switchTab('dashboard')">Tableau de bord</button>
+      </div>
+      <div class="action-group">
+        <button class="btn-primary" onclick="openContactForm()">+ Ajouter un contact</button>
+        <button class="btn-secondary" onclick="handleLogout()">Déconnexion</button>
+      </div>
     </div>
   </div>
 
@@ -71,7 +75,7 @@
   <div id="view-contacts" class="view hidden">
     <div class="contacts-toolbar">
       <div class="search-box">
-        <input type="text" id="search-input" placeholder="Rechercher un nom, un email..." oninput="renderContactsTable()">
+        <input type="text" id="search-input" placeholder="Rechercher dans tous les champs..." oninput="renderContactsTable()">
       </div>
       <select class="filter-select" id="filter-statut" onchange="renderContactsTable()">
         <option value="">Statut : Tous</option>
@@ -79,16 +83,53 @@
         <option value="Appel découverte programmé">Appel découverte programmé</option>
         <option value="Prospect">Prospect</option>
         <option value="Adhérent">Adhérent</option>
-        <option value="Perdu">Perdu</option>
+        <option value="Non qualifié">Non qualifié</option>
       </select>
+      <button class="btn-secondary" onclick="toggleAdvancedFilters()">Filtres avancés</button>
     </div>
+
+    <div id="advanced-filters-panel" class="advanced-filters-panel hidden">
+      <div class="field"><label>Ville</label><input type="text" id="filter-ville" oninput="renderContactsTable()"></div>
+      <div class="field"><label>Dept / CP</label><input type="text" id="filter-deptcp" oninput="renderContactsTable()"></div>
+      <div class="field">
+        <label>Connu par</label>
+        <select id="filter-connu-par" onchange="renderContactsTable()">
+          <option value="">Tous</option>
+          <option>Recherche Google</option><option>Pub Google</option><option>Pub Facebook</option>
+          <option>Journal</option><option>Radio</option><option>Recommandation</option><option>Autre</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Type de contact</label>
+        <select id="filter-type-contact" onchange="renderContactsTable()">
+          <option value="">Tous</option>
+          <option>Appel découverte</option><option>Appel entrant</option><option>Mail</option>
+          <option>Whatsapp</option><option>SMS</option><option>Facebook</option><option>Autre</option>
+        </select>
+      </div>
+      <div class="field"><label>Âge min</label><input type="number" id="filter-age-min" oninput="renderContactsTable()"></div>
+      <div class="field"><label>Âge max</label><input type="number" id="filter-age-max" oninput="renderContactsTable()"></div>
+    </div>
+    <div class="filters-actions-row">
+      <button class="btn-secondary" onclick="resetAdvancedFilters()">Réinitialiser les filtres</button>
+    </div>
+
     <div class="table-scroll">
-      <table class="data-table">
+      <table class="data-table contacts-wide" id="contacts-table">
         <thead>
           <tr>
-            <th>Date</th><th>Nom</th><th>Prénom</th><th>Âge</th><th>Email</th>
-            <th>Téléphone</th><th>Adresse</th><th>CP</th><th>Ville</th>
-            <th>Type de contact</th><th>Commentaire</th><th>Statut</th><th>Formule</th>
+            <th onclick="sortTable('contacts','created_at')">Date<span class="sort-arrow" data-field="created_at"></span></th>
+            <th onclick="sortTable('contacts','prenom')">Prénom<span class="sort-arrow" data-field="prenom"></span></th>
+            <th onclick="sortTable('contacts','nom')">Nom<span class="sort-arrow" data-field="nom"></span></th>
+            <th onclick="sortTable('contacts','age')">Âge<span class="sort-arrow" data-field="age"></span></th>
+            <th onclick="sortTable('contacts','email')">Email<span class="sort-arrow" data-field="email"></span></th>
+            <th onclick="sortTable('contacts','telephone')">Téléphone<span class="sort-arrow" data-field="telephone"></span></th>
+            <th onclick="sortTable('contacts','dept_cp')">Dept / CP<span class="sort-arrow" data-field="dept_cp"></span></th>
+            <th onclick="sortTable('contacts','ville')">Ville<span class="sort-arrow" data-field="ville"></span></th>
+            <th onclick="sortTable('contacts','type_contact')">Type de contact<span class="sort-arrow" data-field="type_contact"></span></th>
+            <th onclick="sortTable('contacts','commentaire')">Commentaire<span class="sort-arrow" data-field="commentaire"></span></th>
+            <th onclick="sortTable('contacts','statut')">Statut<span class="sort-arrow" data-field="statut"></span></th>
+            <th onclick="sortTable('contacts','formule')">Formule<span class="sort-arrow" data-field="formule"></span></th>
           </tr>
         </thead>
         <tbody id="contacts-table-body"></tbody>
@@ -97,9 +138,28 @@
     <div class="table-footer" id="contacts-count"></div>
   </div>
 
+  <!-- ---------------- ADHÉRENTS ---------------- -->
+  <div id="view-adherents" class="view hidden">
+    <div class="table-scroll">
+      <table class="data-table" id="adherents-table">
+        <thead>
+          <tr>
+            <th onclick="sortTable('adherents','statut')">Statut<span class="sort-arrow" data-field="statut"></span></th>
+            <th onclick="sortTable('adherents','prenom')">Prénom<span class="sort-arrow" data-field="prenom"></span></th>
+            <th onclick="sortTable('adherents','nom')">Nom<span class="sort-arrow" data-field="nom"></span></th>
+            <th onclick="sortTable('adherents','commentaire')">Commentaire (dernier)<span class="sort-arrow" data-field="commentaire"></span></th>
+            <th onclick="sortTable('adherents','date_maj')">Dernière mise à jour<span class="sort-arrow" data-field="date_maj"></span></th>
+          </tr>
+        </thead>
+        <tbody id="adherents-table-body"></tbody>
+      </table>
+    </div>
+    <div class="table-footer" id="adherents-count"></div>
+  </div>
+
 </div>
 
-<!-- ================= MODALE : AJOUT / MODIFICATION D'UN CONTACT ================= -->
+<!-- ================= MODALE : AJOUT D'UN CONTACT ================= -->
 <div id="modal-contact-form" class="modal-overlay hidden">
   <div class="modal-box">
     <div class="modal-header">
@@ -109,8 +169,8 @@
     <input type="hidden" id="form-contact-id">
     <div class="form-grid grid-3">
       <div class="field"><label>Date</label><input type="date" id="f-date"></div>
-      <div class="field"><label>Nom</label><input type="text" id="f-nom"></div>
       <div class="field"><label>Prénom</label><input type="text" id="f-prenom"></div>
+      <div class="field"><label>Nom</label><input type="text" id="f-nom"></div>
     </div>
     <div class="form-grid" style="grid-template-columns:1fr 2fr 2fr;">
       <div class="field"><label>Âge</label><input type="number" id="f-age" min="18" max="120"></div>
@@ -119,7 +179,7 @@
     </div>
     <div class="form-grid" style="grid-template-columns:2fr 1fr 1fr;">
       <div class="field"><label>Adresse</label><input type="text" id="f-adresse"></div>
-      <div class="field"><label>Code postal</label><input type="text" id="f-cp"></div>
+      <div class="field"><label>Dept / CP</label><input type="text" id="f-deptcp" placeholder="90 ou 90000"></div>
       <div class="field"><label>Ville</label><input type="text" id="f-ville"></div>
     </div>
     <div class="form-grid grid-2">
@@ -133,8 +193,8 @@
       <div class="field">
         <label>Type de contact</label>
         <select id="f-type-contact">
-          <option>Appel entrant</option><option>Mail</option><option>Whatsapp</option>
-          <option>SMS</option><option>Facebook</option><option>Autre</option>
+          <option>Appel découverte</option><option>Appel entrant</option><option>Mail</option>
+          <option>Whatsapp</option><option>SMS</option><option>Facebook</option><option>Autre</option>
         </select>
       </div>
     </div>
@@ -179,10 +239,10 @@
           <option value="Appel découverte programmé">Appel découverte programmé</option>
           <option value="Prospect">Prospect</option>
           <option value="Adhérent">Adhérent</option>
-          <option value="Perdu">Perdu</option>
+          <option value="Non qualifié">Non qualifié</option>
         </select>
       </div>
-      <div class="field"><label>Note (optionnel)</label><input type="text" id="detail-status-note"></div>
+      <div class="field"><label>Commentaire (optionnel)</label><input type="text" id="detail-status-note"></div>
     </div>
 
     <div id="detail-adhesion-fields" class="hidden">
@@ -207,7 +267,7 @@
       <button class="btn-primary" onclick="saveStatusChange()">Enregistrer le statut</button>
     </div>
 
-    <div class="detail-section-title">Historique</div>
+    <div class="detail-section-title">Historique (du plus récent au plus ancien)</div>
     <div id="detail-history-list"><div class="empty-state">Aucun historique</div></div>
 
     <div class="form-actions" style="margin-top:18px;">
