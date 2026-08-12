@@ -1,5 +1,5 @@
 // =========================================================
-// Cœur & Co — Logique de l'application
+// Coup De Coeur — Logique de l'application
 // =========================================================
 
 let contacts = [];
