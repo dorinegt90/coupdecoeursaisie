@@ -1,5 +1,5 @@
 // =========================================================
-// Coup De Coeur — Logique de l'application
+// Coup de cœur — Logique de l'application
 // =========================================================
 
 let contacts = [];
@@ -8,7 +8,10 @@ let adhesions = [];
 let currentPeriod = 'week';
 let currentDetailContact = null;
 
-const STATUTS = ['Contact entrant', 'Appel découverte programmé', 'Prospect', 'Adhérent', 'Perdu'];
+let contactsSort = { field: 'created_at', dir: 'desc' };
+let adherentsSort = { field: 'date_maj', dir: 'desc' };
+
+const STATUTS = ['Contact entrant', 'Appel découverte programmé', 'Prospect', 'Adhérent', 'Non qualifié'];
 
 // ---------------------------------------------------------
 // Authentification
@@ -70,6 +73,7 @@ async function loadAllData() {
 
   renderDashboard();
   renderContactsTable();
+  renderAdherentsTable();
 }
 
 function getAdhesion(contactId) {
@@ -82,14 +86,23 @@ function getHistoryFor(contactId) {
     .sort((a, b) => new Date(b.date_changement) - new Date(a.date_changement));
 }
 
+function getLastHistoryDate(contactId) {
+  const h = getHistoryFor(contactId);
+  if (h.length > 0) return h[0].date_changement;
+  const c = contacts.find(x => x.id === contactId);
+  return c ? c.created_at : null;
+}
+
 // ---------------------------------------------------------
 // Navigation
 // ---------------------------------------------------------
 function switchTab(tab) {
   document.getElementById('tab-dashboard').classList.toggle('active', tab === 'dashboard');
   document.getElementById('tab-contacts').classList.toggle('active', tab === 'contacts');
+  document.getElementById('tab-adherents').classList.toggle('active', tab === 'adherents');
   document.getElementById('view-dashboard').classList.toggle('hidden', tab !== 'dashboard');
   document.getElementById('view-contacts').classList.toggle('hidden', tab !== 'contacts');
+  document.getElementById('view-adherents').classList.toggle('hidden', tab !== 'adherents');
 }
 
 // ---------------------------------------------------------
@@ -213,16 +226,16 @@ function badgeClass(statut) {
     case 'Appel découverte programmé': return 'badge-decouverte';
     case 'Prospect': return 'badge-prospect';
     case 'Adhérent': return 'badge-adherent';
-    case 'Perdu': return 'badge-perdu';
+    case 'Non qualifié': return 'badge-nonqualifie';
     default: return 'badge-entrant';
   }
 }
 function getAvatarColor(statut) {
   switch (statut) {
     case 'Appel découverte programmé': return '#9C7526';
-    case 'Prospect': return '#6B4E71';
-    case 'Adhérent': return '#4E7247';
-    case 'Perdu': return '#A6433C';
+    case 'Prospect': return '#1C87A0';
+    case 'Adhérent': return '#C44434';
+    case 'Non qualifié': return '#54514D';
     default: return '#8C7A78';
   }
 }
@@ -235,48 +248,181 @@ function escapeHtml(str) {
 }
 
 // ---------------------------------------------------------
+// Tri générique des tableaux
+// ---------------------------------------------------------
+function sortTable(table, field) {
+  const state = table === 'contacts' ? contactsSort : adherentsSort;
+  if (state.field === field) {
+    state.dir = state.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    state.field = field;
+    state.dir = 'asc';
+  }
+  if (table === 'contacts') renderContactsTable(); else renderAdherentsTable();
+}
+
+function compareRows(a, b, field) {
+  if (field === 'age') {
+    return (Number(a.age) || 0) - (Number(b.age) || 0);
+  }
+  if (field === 'created_at' || field === 'date_maj') {
+    return new Date(a[field] || 0) - new Date(b[field] || 0);
+  }
+  const va = (a[field] || '').toString().toLowerCase();
+  const vb = (b[field] || '').toString().toLowerCase();
+  return va.localeCompare(vb, 'fr');
+}
+
+function updateSortArrows(tableId, state) {
+  document.querySelectorAll(`#${tableId} thead [data-field]`).forEach(el => {
+    if (el.dataset.field === state.field) {
+      el.textContent = state.dir === 'asc' ? '▲' : '▼';
+    } else {
+      el.textContent = '';
+    }
+  });
+}
+
+// ---------------------------------------------------------
+// Filtres
+// ---------------------------------------------------------
+function toggleAdvancedFilters() {
+  document.getElementById('advanced-filters-panel').classList.toggle('hidden');
+}
+function resetAdvancedFilters() {
+  ['filter-ville', 'filter-deptcp', 'filter-age-min', 'filter-age-max'].forEach(id => document.getElementById(id).value = '');
+  ['filter-connu-par', 'filter-type-contact', 'filter-statut'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('search-input').value = '';
+  renderContactsTable();
+}
+
+function getAdvancedFilters() {
+  return {
+    ville: (document.getElementById('filter-ville').value || '').trim().toLowerCase(),
+    deptCp: (document.getElementById('filter-deptcp').value || '').trim().toLowerCase(),
+    connuPar: document.getElementById('filter-connu-par').value,
+    typeContact: document.getElementById('filter-type-contact').value,
+    ageMin: document.getElementById('filter-age-min').value,
+    ageMax: document.getElementById('filter-age-max').value,
+  };
+}
+
+function matchesAdvanced(row, f) {
+  if (f.ville && !(row.ville || '').toLowerCase().includes(f.ville)) return false;
+  if (f.deptCp && !(row.dept_cp || '').toLowerCase().includes(f.deptCp)) return false;
+  if (f.connuPar && row.connu_par !== f.connuPar) return false;
+  if (f.typeContact && row.type_contact !== f.typeContact) return false;
+  if (f.ageMin && (!row.age || Number(row.age) < Number(f.ageMin))) return false;
+  if (f.ageMax && (!row.age || Number(row.age) > Number(f.ageMax))) return false;
+  return true;
+}
+
+function matchesSearch(row, search) {
+  if (!search) return true;
+  const hay = [
+    row.prenom, row.nom, row.email, row.telephone, row.adresse,
+    row.dept_cp, row.ville, row.connu_par, row.type_contact, row.commentaire, row.statut,
+  ].join(' ').toLowerCase();
+  return hay.includes(search);
+}
+
+// ---------------------------------------------------------
 // Liste des contacts
 // ---------------------------------------------------------
+function buildContactRows() {
+  return contacts.map(c => {
+    const adh = getAdhesion(c.id);
+    return {
+      id: c.id, created_at: c.created_at, prenom: c.prenom, nom: c.nom, age: c.age,
+      email: c.email, telephone: c.telephone, adresse: c.adresse, dept_cp: c.dept_cp, ville: c.ville,
+      connu_par: c.connu_par, type_contact: c.type_contact, commentaire: c.commentaire,
+      statut: c.statut_actuel, formule: adh ? adh.type_formule : null,
+    };
+  });
+}
+
 function renderContactsTable() {
   const search = document.getElementById('search-input').value.trim().toLowerCase();
   const statutFilter = document.getElementById('filter-statut').value;
+  const adv = getAdvancedFilters();
 
-  const filtered = contacts.filter(c => {
-    const matchSearch = !search ||
-      (c.nom || '').toLowerCase().includes(search) ||
-      (c.prenom || '').toLowerCase().includes(search) ||
-      (c.email || '').toLowerCase().includes(search);
-    const matchStatut = !statutFilter || c.statut_actuel === statutFilter;
-    return matchSearch && matchStatut;
+  let rows = buildContactRows().filter(r =>
+    matchesSearch(r, search) &&
+    (!statutFilter || r.statut === statutFilter) &&
+    matchesAdvanced(r, adv)
+  );
+
+  rows.sort((a, b) => {
+    const res = compareRows(a, b, contactsSort.field);
+    return contactsSort.dir === 'asc' ? res : -res;
   });
 
   const tbody = document.getElementById('contacts-table-body');
-  if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="13" class="empty-state">Aucun contact ne correspond à cette recherche</td></tr>`;
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="12" class="empty-state">Aucun contact ne correspond à cette recherche</td></tr>`;
   } else {
-    tbody.innerHTML = filtered.map(c => {
-      const adh = getAdhesion(c.id);
-      return `
-      <tr onclick="openContactDetail('${c.id}')">
-        <td>${formatDateFR(c.created_at)}</td>
-        <td>${escapeHtml(c.nom)}</td>
-        <td>${escapeHtml(c.prenom)}</td>
-        <td>${c.age || '—'}</td>
-        <td class="cell-muted">${escapeHtml(c.email || '—')}</td>
-        <td>${escapeHtml(c.telephone || '—')}</td>
-        <td>${escapeHtml(c.adresse || '—')}</td>
-        <td>${escapeHtml(c.code_postal || '—')}</td>
-        <td>${escapeHtml(c.ville || '—')}</td>
-        <td>${escapeHtml(c.type_contact || '—')}</td>
-        <td class="cell-ellipsis cell-muted">${escapeHtml(c.commentaire || '—')}</td>
-        <td><span class="badge ${badgeClass(c.statut_actuel)}">${c.statut_actuel}</span></td>
-        <td>${adh ? escapeHtml(adh.type_formule || '—') : '<span class="cell-muted">—</span>'}</td>
-      </tr>`;
-    }).join('');
+    tbody.innerHTML = rows.map(r => `
+      <tr onclick="openContactDetail('${r.id}')">
+        <td>${formatDateFR(r.created_at)}</td>
+        <td>${escapeHtml(r.prenom)}</td>
+        <td>${escapeHtml(r.nom)}</td>
+        <td>${r.age || '—'}</td>
+        <td class="cell-muted">${escapeHtml(r.email || '—')}</td>
+        <td>${escapeHtml(r.telephone || '—')}</td>
+        <td>${escapeHtml(r.dept_cp || '—')}</td>
+        <td>${escapeHtml(r.ville || '—')}</td>
+        <td>${escapeHtml(r.type_contact || '—')}</td>
+        <td class="cell-ellipsis cell-muted">${escapeHtml(r.commentaire || '—')}</td>
+        <td><span class="badge ${badgeClass(r.statut)}">${r.statut}</span></td>
+        <td>${r.formule ? escapeHtml(r.formule) : '<span class="cell-muted">—</span>'}</td>
+      </tr>`
+    ).join('');
   }
 
   document.getElementById('contacts-count').textContent =
-    `${filtered.length} contact${filtered.length > 1 ? 's' : ''} affiché${filtered.length > 1 ? 's' : ''} sur ${contacts.length}`;
+    `${rows.length} contact${rows.length > 1 ? 's' : ''} affiché${rows.length > 1 ? 's' : ''} sur ${contacts.length}`;
+
+  updateSortArrows('contacts-table', contactsSort);
+}
+
+// ---------------------------------------------------------
+// Liste des adhérents
+// ---------------------------------------------------------
+function buildAdherentRows() {
+  return contacts
+    .filter(c => c.statut_actuel === 'Adhérent')
+    .map(c => ({
+      id: c.id, statut: c.statut_actuel, prenom: c.prenom, nom: c.nom,
+      commentaire: c.commentaire, date_maj: getLastHistoryDate(c.id),
+    }));
+}
+
+function renderAdherentsTable() {
+  let rows = buildAdherentRows();
+  rows.sort((a, b) => {
+    const res = compareRows(a, b, adherentsSort.field);
+    return adherentsSort.dir === 'asc' ? res : -res;
+  });
+
+  const tbody = document.getElementById('adherents-table-body');
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Aucun adhérent pour le moment</td></tr>`;
+  } else {
+    tbody.innerHTML = rows.map(r => `
+      <tr onclick="openContactDetail('${r.id}')">
+        <td><span class="badge ${badgeClass(r.statut)}">${r.statut}</span></td>
+        <td>${escapeHtml(r.prenom)}</td>
+        <td>${escapeHtml(r.nom)}</td>
+        <td class="cell-ellipsis cell-muted">${escapeHtml(r.commentaire || '—')}</td>
+        <td>${formatDateTimeFR(r.date_maj)}</td>
+      </tr>`
+    ).join('');
+  }
+
+  document.getElementById('adherents-count').textContent =
+    `${rows.length} adhérent${rows.length > 1 ? 's' : ''}`;
+
+  updateSortArrows('adherents-table', adherentsSort);
 }
 
 // ---------------------------------------------------------
@@ -286,7 +432,7 @@ function openContactForm() {
   document.getElementById('form-title').textContent = 'Nouveau contact';
   document.getElementById('form-contact-id').value = '';
   document.getElementById('f-date').value = new Date().toISOString().slice(0, 10);
-  ['f-nom', 'f-prenom', 'f-age', 'f-email', 'f-telephone', 'f-adresse', 'f-cp', 'f-ville', 'f-commentaire']
+  ['f-nom', 'f-prenom', 'f-age', 'f-email', 'f-telephone', 'f-adresse', 'f-deptcp', 'f-ville', 'f-commentaire']
     .forEach(id => document.getElementById(id).value = '');
   document.getElementById('f-connu-par').selectedIndex = 0;
   document.getElementById('f-type-contact').selectedIndex = 0;
@@ -312,7 +458,7 @@ async function saveContactForm() {
     email: document.getElementById('f-email').value.trim() || null,
     telephone: document.getElementById('f-telephone').value.trim() || null,
     adresse: document.getElementById('f-adresse').value.trim() || null,
-    code_postal: document.getElementById('f-cp').value.trim() || null,
+    dept_cp: document.getElementById('f-deptcp').value.trim() || null,
     ville: document.getElementById('f-ville').value.trim() || null,
     connu_par: document.getElementById('f-connu-par').value,
     type_contact: document.getElementById('f-type-contact').value,
@@ -325,6 +471,7 @@ async function saveContactForm() {
 
   await supabaseClient.from('statut_historique').insert({
     contact_id: data.id, statut: 'Contact entrant', date_changement: payload.created_at,
+    commentaire: payload.commentaire,
   });
 
   closeContactForm();
@@ -383,12 +530,12 @@ function renderDetailViewFields(c) {
   document.getElementById('detail-view-fields').innerHTML = [
     field('Date', formatDateFR(c.created_at, true)),
     field('Âge', c.age),
-    field('Nom', c.nom),
     field('Prénom', c.prenom),
+    field('Nom', c.nom),
     field('Email', c.email),
     field('Téléphone', c.telephone),
     field('Adresse', c.adresse),
-    field('Code postal', c.code_postal),
+    field('Dept / CP', c.dept_cp),
     field('Ville', c.ville),
     field('Connu par', c.connu_par),
     field('Type de contact', c.type_contact),
@@ -399,8 +546,8 @@ function renderDetailViewFields(c) {
 function renderDetailEditFields(c) {
   document.getElementById('detail-edit-fields').innerHTML = `
     <div class="form-grid grid-2">
-      <div class="field"><label>Nom</label><input id="e-nom" value="${escapeHtml(c.nom)}"></div>
       <div class="field"><label>Prénom</label><input id="e-prenom" value="${escapeHtml(c.prenom)}"></div>
+      <div class="field"><label>Nom</label><input id="e-nom" value="${escapeHtml(c.nom)}"></div>
     </div>
     <div class="form-grid grid-2">
       <div class="field"><label>Âge</label><input type="number" id="e-age" value="${c.age || ''}"></div>
@@ -412,7 +559,7 @@ function renderDetailEditFields(c) {
     </div>
     <div class="form-grid grid-2">
       <div class="field"><label>Adresse</label><input id="e-adresse" value="${escapeHtml(c.adresse || '')}"></div>
-      <div class="field"><label>Code postal</label><input id="e-cp" value="${escapeHtml(c.code_postal || '')}"></div>
+      <div class="field"><label>Dept / CP</label><input id="e-deptcp" value="${escapeHtml(c.dept_cp || '')}"></div>
     </div>
     <div class="field" style="margin-bottom:12px;">
       <label>Commentaire</label>
@@ -448,7 +595,7 @@ async function saveEditedFields() {
     telephone: document.getElementById('e-telephone').value.trim() || null,
     ville: document.getElementById('e-ville').value.trim() || null,
     adresse: document.getElementById('e-adresse').value.trim() || null,
-    code_postal: document.getElementById('e-cp').value.trim() || null,
+    dept_cp: document.getElementById('e-deptcp').value.trim() || null,
     commentaire: document.getElementById('e-commentaire').value.trim() || null,
   };
   const { error } = await supabaseClient.from('contacts').update(payload).eq('id', c.id);
@@ -468,7 +615,7 @@ function onDetailStatusChange() {
 async function saveStatusChange() {
   const c = currentDetailContact;
   const newStatus = document.getElementById('detail-new-status').value;
-  const note = document.getElementById('detail-status-note').value.trim() || null;
+  const commentaire = document.getElementById('detail-status-note').value.trim() || null;
 
   if (newStatus === 'Adhérent') {
     const montant = document.getElementById('detail-montant').value;
@@ -488,16 +635,21 @@ async function saveStatusChange() {
     if (adhError) { alert("Erreur à l'enregistrement de l'adhésion : " + adhError.message); return; }
   }
 
-  if (newStatus !== c.statut_actuel || note) {
+  if (newStatus !== c.statut_actuel || commentaire) {
     const { error: histError } = await supabaseClient.from('statut_historique').insert({
-      contact_id: c.id, statut: newStatus, note,
+      contact_id: c.id, statut: newStatus, commentaire,
     });
     if (histError) { alert("Erreur à l'enregistrement du statut : " + histError.message); return; }
   }
 
-  if (newStatus !== c.statut_actuel) {
-    const { error: updError } = await supabaseClient.from('contacts').update({ statut_actuel: newStatus }).eq('id', c.id);
-    if (updError) { alert("Erreur à la mise à jour du statut : " + updError.message); return; }
+  const updatePayload = {};
+  if (newStatus !== c.statut_actuel) updatePayload.statut_actuel = newStatus;
+  // Le dernier commentaire saisi devient le commentaire affiché dans les listes
+  if (commentaire) updatePayload.commentaire = commentaire;
+
+  if (Object.keys(updatePayload).length > 0) {
+    const { error: updError } = await supabaseClient.from('contacts').update(updatePayload).eq('id', c.id);
+    if (updError) { alert("Erreur à la mise à jour : " + updError.message); return; }
   }
 
   await loadAllData();
@@ -515,7 +667,7 @@ function renderHistory(contactId) {
     <div class="timeline-item">
       <div>
         <span class="badge ${badgeClass(h.statut)}">${h.statut}</span>
-        ${h.note ? `<span style="margin-left:8px;color:var(--ink-soft);">${escapeHtml(h.note)}</span>` : ''}
+        ${h.commentaire ? `<span style="margin-left:8px;color:var(--ink-soft);">${escapeHtml(h.commentaire)}</span>` : ''}
       </div>
       <span class="timeline-date">${formatDateTimeFR(h.date_changement)}</span>
     </div>
