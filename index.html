@@ -85,10 +85,9 @@
         <option value="Adhérent">Adhérent</option>
         <option value="Non qualifié">Non qualifié</option>
       </select>
-      <button class="btn-secondary" onclick="toggleAdvancedFilters()">Filtres avancés</button>
     </div>
 
-    <div id="advanced-filters-panel" class="advanced-filters-panel hidden">
+    <div id="advanced-filters-panel" class="advanced-filters-panel">
       <div class="field"><label>Ville</label><input type="text" id="filter-ville" oninput="renderContactsTable()"></div>
       <div class="field"><label>Dept / CP</label><input type="text" id="filter-deptcp" oninput="renderContactsTable()"></div>
       <div class="field">
