@@ -286,9 +286,6 @@ function updateSortArrows(tableId, state) {
 // ---------------------------------------------------------
 // Filtres
 // ---------------------------------------------------------
-function toggleAdvancedFilters() {
-  document.getElementById('advanced-filters-panel').classList.toggle('hidden');
-}
 function resetAdvancedFilters() {
   ['filter-ville', 'filter-deptcp', 'filter-age-min', 'filter-age-max'].forEach(id => document.getElementById(id).value = '');
   ['filter-connu-par', 'filter-type-contact', 'filter-statut'].forEach(id => document.getElementById(id).value = '');
