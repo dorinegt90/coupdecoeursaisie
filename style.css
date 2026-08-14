@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Roboto:wght@400;500;700&display=swap');
+
 :root {
   --cream: #F8F3ED;
   --red: #C44434;
@@ -125,7 +127,31 @@ button { font-family: inherit; }
 .stat-card.c3 { background: var(--badge-prospect-bg); } .stat-card.c3 .stat-value{color:#0F4E5C;} .stat-card.c3 .stat-label{color:var(--badge-prospect-text);}
 .stat-card.c4 { background: #EFE6DA; } .stat-card.c4 .stat-value{color:#5C4507;} .stat-card.c4 .stat-label{color:#8A6710;}
 
-.recent-list-title { font-size: 12px; color: var(--ink-soft); margin-bottom: 8px; }
+.stat-card-clickable { cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s; }
+.stat-card-clickable:hover { border-color: rgba(0,0,0,0.12); }
+.stat-card-clickable.active-filter { border-color: var(--dark); }
+
+.recent-list-title { font-size: 12px; color: var(--ink-soft); margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+#clear-dashboard-filter {
+  border: none; background: var(--badge-nonqualifie-bg); color: var(--badge-nonqualifie-text);
+  font-size: 11px; padding: 3px 10px; border-radius: 20px; cursor: pointer; font-family: inherit;
+}
+
+.field textarea { overflow: hidden; }
+
+.comment-log {
+  background: #F5FAFB;
+  border: 1px solid var(--teal);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  max-height: 320px;
+  overflow-y: auto;
+  font-size: 12.5px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  color: var(--ink);
+}
+
 .recent-row {
   display: flex; align-items: center; justify-content: space-between;
   background: #fff; border: 0.5px solid var(--border); border-radius: var(--radius);
