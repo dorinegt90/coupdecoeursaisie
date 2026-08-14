@@ -5,8 +5,15 @@
 let contacts = [];
 let statutHistorique = [];
 let adhesions = [];
+let suiviHistorique = [];
 let currentPeriod = 'week';
 let currentDetailContact = null;
+let dashboardFilter = null; // null | 'nouveaux' | 'decouverte' | 'signatures' | 'ca'
+
+const FILTER_LABELS = {
+  nouveaux: 'Nouveaux contacts', decouverte: 'Appels découverte',
+  signatures: 'Signatures', ca: "Chiffre d'affaires",
+};
 
 let contactsSort = { field: 'created_at', dir: 'desc' };
 let adherentsSort = { field: 'date_maj', dir: 'desc' };
@@ -60,16 +67,18 @@ async function handleLogout() {
 // Chargement des données
 // ---------------------------------------------------------
 async function loadAllData() {
-  const [contactsRes, historiqueRes, adhesionsRes] = await Promise.all([
+  const [contactsRes, historiqueRes, adhesionsRes, suiviRes] = await Promise.all([
     supabaseClient.from('contacts').select('*').order('created_at', { ascending: false }),
     supabaseClient.from('statut_historique').select('*').order('date_changement', { ascending: true }),
     supabaseClient.from('adhesions').select('*'),
+    supabaseClient.from('suivi_historique').select('*').order('date_commentaire', { ascending: true }),
   ]);
 
   if (contactsRes.error) { alert("Erreur de chargement des contacts : " + contactsRes.error.message); return; }
   contacts = contactsRes.data || [];
   statutHistorique = historiqueRes.data || [];
   adhesions = adhesionsRes.data || [];
+  suiviHistorique = suiviRes.data || [];
 
   renderDashboard();
   renderContactsTable();
@@ -91,6 +100,56 @@ function getLastHistoryDate(contactId) {
   if (h.length > 0) return h[0].date_changement;
   const c = contacts.find(x => x.id === contactId);
   return c ? c.created_at : null;
+}
+
+function getSuiviFor(contactId) {
+  return suiviHistorique
+    .filter(s => s.contact_id === contactId)
+    .sort((a, b) => new Date(a.date_commentaire) - new Date(b.date_commentaire));
+}
+
+function formatDateShort(dateStr) {
+  return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '.');
+}
+
+function buildCommentLogText(contactId) {
+  const entries = getSuiviFor(contactId);
+  if (entries.length === 0) return '';
+  return entries.map(e => `${formatDateShort(e.date_commentaire)} : ${e.commentaire}`).join('\n\n');
+}
+
+// Le dernier commentaire "utile" pour un contact, en comparant la source
+// changement de statut et le suivi adhérent, pour toujours afficher le plus récent.
+function getLatestComment(contactId) {
+  const candidates = [];
+  const c = contacts.find(x => x.id === contactId);
+  if (c && c.commentaire) {
+    const h = getHistoryFor(contactId).find(h => h.commentaire === c.commentaire);
+    candidates.push({ date: h ? h.date_changement : c.created_at, text: c.commentaire });
+  }
+  const suivi = getSuiviFor(contactId);
+  if (suivi.length > 0) {
+    const last = suivi[suivi.length - 1];
+    candidates.push({ date: last.date_commentaire, text: last.commentaire });
+  }
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => new Date(b.date) - new Date(a.date));
+  return candidates[0].text;
+}
+
+function getLastActivityDate(contactId) {
+  const c = contacts.find(x => x.id === contactId);
+  let latest = c ? new Date(c.created_at) : new Date(0);
+  const h = getHistoryFor(contactId);
+  if (h.length > 0) { const d = new Date(h[0].date_changement); if (d > latest) latest = d; }
+  const s = getSuiviFor(contactId);
+  if (s.length > 0) { const d = new Date(s[s.length - 1].date_commentaire); if (d > latest) latest = d; }
+  return latest.toISOString();
+}
+
+function autoGrow(el) {
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
 }
 
 // ---------------------------------------------------------
@@ -185,6 +244,34 @@ function computeStats(period) {
   return { nouveaux, decouverte, signatures, ca, start, end };
 }
 
+function getDashboardFilterContacts(type, start, end) {
+  if (type === 'nouveaux') {
+    return contacts.filter(c => inRange(c.created_at, start, end));
+  }
+  if (type === 'decouverte') {
+    const ids = new Set(statutHistorique
+      .filter(h => h.statut === 'Appel découverte programmé' && inRange(h.date_changement, start, end))
+      .map(h => h.contact_id));
+    return contacts.filter(c => ids.has(c.id));
+  }
+  if (type === 'signatures' || type === 'ca') {
+    const ids = new Set(statutHistorique
+      .filter(h => h.statut === 'Adhérent' && inRange(h.date_changement, start, end))
+      .map(h => h.contact_id));
+    return contacts.filter(c => ids.has(c.id));
+  }
+  return [];
+}
+
+function selectDashboardFilter(type) {
+  dashboardFilter = dashboardFilter === type ? null : type;
+  renderDashboard();
+}
+function clearDashboardFilter() {
+  dashboardFilter = null;
+  renderDashboard();
+}
+
 function renderDashboard() {
   const stats = computeStats(currentPeriod);
 
@@ -198,13 +285,30 @@ function renderDashboard() {
     : `Mois complet : ${stats.start.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
   document.getElementById('dash-period-label').textContent = label;
 
+  ['nouveaux', 'decouverte', 'signatures', 'ca'].forEach(type => {
+    document.getElementById(`stat-card-${type}`).classList.toggle('active-filter', dashboardFilter === type);
+  });
+
   const recentEl = document.getElementById('recent-contacts-list');
-  const recent = [...contacts].slice(0, 5);
-  if (recent.length === 0) {
-    recentEl.innerHTML = '<div class="empty-state">Aucun contact pour le moment</div>';
+  const titleEl = document.getElementById('recent-list-title');
+  const clearBtn = document.getElementById('clear-dashboard-filter');
+
+  let list;
+  if (dashboardFilter) {
+    list = getDashboardFilterContacts(dashboardFilter, stats.start, stats.end);
+    titleEl.textContent = `${FILTER_LABELS[dashboardFilter]} (${currentPeriod === 'week' ? 'cette semaine' : 'ce mois'})`;
+    clearBtn.classList.remove('hidden');
+  } else {
+    list = [...contacts].slice(0, 5);
+    titleEl.textContent = 'Derniers contacts';
+    clearBtn.classList.add('hidden');
+  }
+
+  if (list.length === 0) {
+    recentEl.innerHTML = '<div class="empty-state">Aucun contact ne correspond</div>';
     return;
   }
-  recentEl.innerHTML = recent.map(c => `
+  recentEl.innerHTML = list.map(c => `
     <div class="recent-row" onclick="openContactDetail('${c.id}')">
       <div class="recent-left">
         <div class="avatar" style="background:${getAvatarColor(c.statut_actuel)}">${initials(c)}</div>
@@ -332,7 +436,7 @@ function buildContactRows() {
     return {
       id: c.id, created_at: c.created_at, prenom: c.prenom, nom: c.nom, age: c.age,
       email: c.email, telephone: c.telephone, adresse: c.adresse, dept_cp: c.dept_cp, ville: c.ville,
-      connu_par: c.connu_par, type_contact: c.type_contact, commentaire: c.commentaire,
+      connu_par: c.connu_par, type_contact: c.type_contact, commentaire: getLatestComment(c.id),
       statut: c.statut_actuel, formule: adh ? adh.type_formule : null,
     };
   });
@@ -390,7 +494,7 @@ function buildAdherentRows() {
     .filter(c => c.statut_actuel === 'Adhérent')
     .map(c => ({
       id: c.id, statut: c.statut_actuel, prenom: c.prenom, nom: c.nom,
-      commentaire: c.commentaire, date_maj: getLastHistoryDate(c.id),
+      commentaire: getLatestComment(c.id), date_maj: getLastActivityDate(c.id),
     }));
 }
 
@@ -406,7 +510,7 @@ function renderAdherentsTable() {
     tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Aucun adhérent pour le moment</td></tr>`;
   } else {
     tbody.innerHTML = rows.map(r => `
-      <tr onclick="openContactDetail('${r.id}')">
+      <tr onclick="openAdherentDetail('${r.id}')">
         <td><span class="badge ${badgeClass(r.statut)}">${r.statut}</span></td>
         <td>${escapeHtml(r.prenom)}</td>
         <td>${escapeHtml(r.nom)}</td>
@@ -669,6 +773,51 @@ function renderHistory(contactId) {
       <span class="timeline-date">${formatDateTimeFR(h.date_changement)}</span>
     </div>
   `).join('');
+}
+
+// ---------------------------------------------------------
+// Popup de suivi d'un adhérent
+// ---------------------------------------------------------
+function openAdherentDetail(id) {
+  const c = contacts.find(x => x.id === id);
+  if (!c) return;
+  currentDetailContact = c;
+
+  document.getElementById('adh-avatar').textContent = initials(c);
+  document.getElementById('adh-avatar').style.background = getAvatarColor(c.statut_actuel);
+  document.getElementById('adh-name').textContent = `${c.prenom} ${c.nom}`;
+  document.getElementById('adh-age').textContent = c.age || '—';
+  document.getElementById('adh-telephone').textContent = c.telephone || '—';
+  document.getElementById('adh-new-comment').value = '';
+
+  renderCommentLog(id);
+  document.getElementById('modal-adherent-detail').classList.remove('hidden');
+}
+
+function closeAdherentDetail() {
+  document.getElementById('modal-adherent-detail').classList.add('hidden');
+  currentDetailContact = null;
+}
+
+function renderCommentLog(contactId) {
+  const el = document.getElementById('adh-comment-log');
+  const text = buildCommentLogText(contactId);
+  el.textContent = text || 'Aucun commentaire pour le moment.';
+  el.scrollTop = el.scrollHeight;
+}
+
+async function saveAdherentComment() {
+  const c = currentDetailContact;
+  const text = document.getElementById('adh-new-comment').value.trim();
+  if (!text) { alert('Merci de saisir un commentaire avant d\'enregistrer.'); return; }
+
+  const { error } = await supabaseClient.from('suivi_historique').insert({
+    contact_id: c.id, commentaire: text,
+  });
+  if (error) { alert("Erreur à l'enregistrement du commentaire : " + error.message); return; }
+
+  await loadAllData();
+  openAdherentDetail(c.id);
 }
 
 async function deleteCurrentContact() {
