@@ -8,6 +8,7 @@ let adhesions = [];
 let suiviHistorique = [];
 let currentPeriod = 'week';
 let currentDetailContact = null;
+let editingSuiviId = null;
 let dashboardFilter = null; // null | 'nouveaux' | 'decouverte' | 'signatures' | 'ca'
 
 const FILTER_LABELS = {
@@ -19,6 +20,47 @@ let contactsSort = { field: 'created_at', dir: 'desc' };
 let adherentsSort = { field: 'date_maj', dir: 'desc' };
 
 const STATUTS = ['Contact entrant', 'Appel découverte programmé', 'Prospect', 'Adhérent', 'Non qualifié'];
+
+// ---------------------------------------------------------
+// Popups déplaçables : glisser depuis l'en-tête
+// ---------------------------------------------------------
+function initDraggableModals() {
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    const box = overlay.querySelector('.modal-box');
+    const header = overlay.querySelector('.modal-header');
+    if (!box || !header) return;
+    let dragging = false, offsetX = 0, offsetY = 0;
+
+    header.addEventListener('mousedown', (e) => {
+      if (e.target.closest('button')) return;
+      dragging = true;
+      const rect = box.getBoundingClientRect();
+      offsetX = e.clientX - rect.left;
+      offsetY = e.clientY - rect.top;
+      box.style.position = 'fixed';
+      box.style.margin = '0';
+      box.style.left = rect.left + 'px';
+      box.style.top = rect.top + 'px';
+      document.body.style.userSelect = 'none';
+    });
+    document.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      box.style.left = Math.max(0, e.clientX - offsetX) + 'px';
+      box.style.top = Math.max(0, e.clientY - offsetY) + 'px';
+    });
+    document.addEventListener('mouseup', () => {
+      dragging = false;
+      document.body.style.userSelect = '';
+    });
+  });
+}
+document.addEventListener('DOMContentLoaded', initDraggableModals);
+
+function resetModalPosition(overlayId) {
+  const overlay = document.getElementById(overlayId);
+  const box = overlay ? overlay.querySelector('.modal-box') : null;
+  if (box) { box.style.position = ''; box.style.left = ''; box.style.top = ''; box.style.margin = ''; }
+}
 
 // ---------------------------------------------------------
 // Authentification
@@ -110,12 +152,6 @@ function getSuiviFor(contactId) {
 
 function formatDateShort(dateStr) {
   return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }).replace(/\//g, '.');
-}
-
-function buildCommentLogText(contactId) {
-  const entries = getSuiviFor(contactId);
-  if (entries.length === 0) return '';
-  return entries.map(e => `${formatDateShort(e.date_commentaire)} : ${e.commentaire}`).join('\n\n');
 }
 
 // Le dernier commentaire "utile" pour un contact, en comparant la source
@@ -225,23 +261,22 @@ function computeStats(period) {
   const end = period === 'week' ? endOfWeek(now) : endOfMonth(now);
 
   const nouveaux = contacts.filter(c => inRange(c.created_at, start, end)).length;
-  let decouverte = 0, signatures = 0, ca = 0;
-  const caComptes = new Set();
+  const decouverteIds = new Set();
+  const signatureIds = new Set();
 
   statutHistorique.forEach(h => {
     if (!inRange(h.date_changement, start, end)) return;
-    if (h.statut === 'Appel découverte programmé') decouverte++;
-    if (h.statut === 'Adhérent') {
-      signatures++;
-      if (!caComptes.has(h.contact_id)) {
-        const adh = getAdhesion(h.contact_id);
-        if (adh) ca += Number(adh.montant) || 0;
-        caComptes.add(h.contact_id);
-      }
-    }
+    if (h.statut === 'Appel découverte programmé') decouverteIds.add(h.contact_id);
+    if (h.statut === 'Adhérent') signatureIds.add(h.contact_id);
   });
 
-  return { nouveaux, decouverte, signatures, ca, start, end };
+  let ca = 0;
+  signatureIds.forEach(id => {
+    const adh = getAdhesion(id);
+    if (adh) ca += Number(adh.montant) || 0;
+  });
+
+  return { nouveaux, decouverte: decouverteIds.size, signatures: signatureIds.size, ca, start, end };
 }
 
 function getDashboardFilterContacts(type, start, end) {
@@ -537,6 +572,7 @@ function openContactForm() {
     .forEach(id => document.getElementById(id).value = '');
   document.getElementById('f-connu-par').selectedIndex = 0;
   document.getElementById('f-type-contact').selectedIndex = 0;
+  resetModalPosition('modal-contact-form');
   document.getElementById('modal-contact-form').classList.remove('hidden');
 }
 function closeContactForm() {
@@ -615,6 +651,7 @@ function openContactDetail(id) {
   }
 
   renderHistory(c.id);
+  resetModalPosition('modal-contact-detail');
   document.getElementById('modal-contact-detail').classList.remove('hidden');
 }
 
@@ -627,13 +664,30 @@ function field(label, value) {
   return `<div class="detail-field"><div class="label">${label}</div><div class="value">${escapeHtml(value || '—')}</div></div>`;
 }
 
+function fieldEmail(label, value) {
+  if (!value) return field(label, value);
+  return `<div class="detail-field"><div class="label">${label}</div><div class="value" style="display:flex;align-items:center;gap:6px;"><span id="detail-email-value">${escapeHtml(value)}</span><button class="copy-btn" onclick="copyFieldText('detail-email-value', this)" title="Copier l'email">⧉</button></div></div>`;
+}
+
+function copyFieldText(elementId, btnEl) {
+  const el = document.getElementById(elementId);
+  const text = (el.textContent || '').trim();
+  if (!text || text === '—') return;
+  navigator.clipboard.writeText(text).then(() => {
+    const original = btnEl.textContent;
+    btnEl.textContent = '✓';
+    btnEl.classList.add('copied');
+    setTimeout(() => { btnEl.textContent = original; btnEl.classList.remove('copied'); }, 1200);
+  });
+}
+
 function renderDetailViewFields(c) {
   document.getElementById('detail-view-fields').innerHTML = [
     field('Date', formatDateFR(c.created_at, true)),
     field('Âge', c.age),
     field('Prénom', c.prenom),
     field('Nom', c.nom),
-    field('Email', c.email),
+    fieldEmail('Email', c.email),
     field('Téléphone', c.telephone),
     field('Adresse', c.adresse),
     field('Dept / CP', c.dept_cp),
@@ -667,6 +721,7 @@ function renderDetailEditFields(c) {
       <textarea id="e-commentaire">${escapeHtml(c.commentaire || '')}</textarea>
     </div>
     <div class="form-actions" style="margin-bottom:8px;">
+      <button class="btn-secondary" onclick="toggleEditMode()">Annuler</button>
       <button class="btn-primary" onclick="saveEditedFields()">✓ Enregistrer les modifications</button>
     </div>
   `;
@@ -782,28 +837,92 @@ function openAdherentDetail(id) {
   const c = contacts.find(x => x.id === id);
   if (!c) return;
   currentDetailContact = c;
+  editingSuiviId = null;
 
   document.getElementById('adh-avatar').textContent = initials(c);
   document.getElementById('adh-avatar').style.background = getAvatarColor(c.statut_actuel);
   document.getElementById('adh-name').textContent = `${c.prenom} ${c.nom}`;
+  document.getElementById('adh-email').textContent = c.email || '—';
   document.getElementById('adh-age').textContent = c.age || '—';
   document.getElementById('adh-telephone').textContent = c.telephone || '—';
   document.getElementById('adh-new-comment').value = '';
 
   renderCommentLog(id);
+  resetModalPosition('modal-adherent-detail');
   document.getElementById('modal-adherent-detail').classList.remove('hidden');
 }
 
 function closeAdherentDetail() {
   document.getElementById('modal-adherent-detail').classList.add('hidden');
   currentDetailContact = null;
+  editingSuiviId = null;
 }
 
 function renderCommentLog(contactId) {
   const el = document.getElementById('adh-comment-log');
-  const text = buildCommentLogText(contactId);
-  el.textContent = text || 'Aucun commentaire pour le moment.';
+  const entries = getSuiviFor(contactId);
+
+  if (entries.length === 0) {
+    el.innerHTML = '<div class="empty-state">Aucun commentaire pour le moment.</div>';
+    return;
+  }
+
+  el.innerHTML = entries.map(e => {
+    if (editingSuiviId === e.id) {
+      return `
+        <div class="suivi-entry suivi-entry-edit">
+          <div class="suivi-entry-header"><span class="suivi-entry-date">${formatDateShort(e.date_commentaire)}</span></div>
+          <textarea id="edit-suivi-${e.id}" oninput="autoGrow(this)">${escapeHtml(e.commentaire)}</textarea>
+          <div class="form-actions">
+            <button class="btn-secondary" onclick="cancelEditSuivi()">Annuler</button>
+            <button class="btn-primary" onclick="saveEditSuivi('${e.id}')">Enregistrer</button>
+          </div>
+        </div>`;
+    }
+    return `
+      <div class="suivi-entry">
+        <div class="suivi-entry-header">
+          <span class="suivi-entry-date">${formatDateShort(e.date_commentaire)}</span>
+          <span class="suivi-entry-actions">
+            <button onclick="startEditSuivi('${e.id}')" title="Modifier">✎</button>
+            <button onclick="deleteSuiviEntry('${e.id}')" title="Supprimer">🗑</button>
+          </span>
+        </div>
+        <div class="suivi-entry-text">${escapeHtml(e.commentaire)}</div>
+      </div>`;
+  }).join('');
+
   el.scrollTop = el.scrollHeight;
+  if (editingSuiviId) {
+    const ta = document.getElementById(`edit-suivi-${editingSuiviId}`);
+    if (ta) autoGrow(ta);
+  }
+}
+
+function startEditSuivi(id) {
+  editingSuiviId = id;
+  renderCommentLog(currentDetailContact.id);
+}
+function cancelEditSuivi() {
+  editingSuiviId = null;
+  renderCommentLog(currentDetailContact.id);
+}
+async function saveEditSuivi(id) {
+  const ta = document.getElementById(`edit-suivi-${id}`);
+  const text = ta.value.trim();
+  if (!text) { alert('Le commentaire ne peut pas être vide.'); return; }
+  const { error } = await supabaseClient.from('suivi_historique').update({ commentaire: text }).eq('id', id);
+  if (error) { alert("Erreur à la modification : " + error.message); return; }
+  editingSuiviId = null;
+  await loadAllData();
+  openAdherentDetail(currentDetailContact.id);
+}
+async function deleteSuiviEntry(id) {
+  if (!confirm('Supprimer ce commentaire ?')) return;
+  const { error } = await supabaseClient.from('suivi_historique').delete().eq('id', id);
+  if (error) { alert("Erreur à la suppression : " + error.message); return; }
+  await loadAllData();
+  openAdherentDetail(currentDetailContact.id);
 }
 
 async function saveAdherentComment() {
