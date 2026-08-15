@@ -694,7 +694,7 @@ function renderDetailViewFields(c) {
     field('Ville', c.ville),
     field('Connu par', c.connu_par),
     field('Type de contact', c.type_contact),
-    field('Commentaire', c.commentaire),
+    field('Commentaire', getLatestComment(c.id)),
   ].join('');
 }
 
@@ -881,13 +881,11 @@ function renderCommentLog(contactId) {
     }
     return `
       <div class="suivi-entry">
-        <div class="suivi-entry-header">
-          <span class="suivi-entry-date">${formatDateShort(e.date_commentaire)}</span>
-          <span class="suivi-entry-actions">
-            <button onclick="startEditSuivi('${e.id}')" title="Modifier">✎</button>
-            <button onclick="deleteSuiviEntry('${e.id}')" title="Supprimer">🗑</button>
-          </span>
-        </div>
+        <div class="suivi-entry-header"><span class="suivi-entry-date">${formatDateShort(e.date_commentaire)}</span></div>
+        <span class="suivi-entry-actions">
+          <button onclick="startEditSuivi('${e.id}')" title="Modifier">✎</button>
+          <button onclick="deleteSuiviEntry('${e.id}')" title="Supprimer">🗑</button>
+        </span>
         <div class="suivi-entry-text">${escapeHtml(e.commentaire)}</div>
       </div>`;
   }).join('');
