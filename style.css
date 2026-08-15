@@ -131,18 +131,6 @@ button { font-family: inherit; }
   background: #fff; border: 0.5px solid var(--border); border-radius: var(--radius);
   padding: 14px; margin-bottom: 16px;
 }
-.period-mode-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
-.period-mode-tabs button {
-  border: none; background: transparent; color: var(--ink-soft);
-  font-size: 11px; padding: 5px 14px; border-radius: 20px; cursor: pointer; font-family: inherit;
-}
-.period-mode-tabs button.active { background: var(--accent); color: #fff; }
-.period-nav-arrows { display: flex; align-items: center; justify-content: center; gap: 18px; }
-.period-nav-arrows button {
-  border: none; background: var(--accent-bg); color: var(--accent-dark);
-  width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 12px;
-}
-.period-nav-arrows span { font-size: 13px; font-weight: 500; color: var(--ink); }
 .period-shortcuts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
 .period-shortcuts span {
   border: 0.5px solid var(--border); color: var(--ink-soft); font-size: 11px;
@@ -172,17 +160,29 @@ button { font-family: inherit; }
 .copy-btn.copied { color: var(--teal); }
 
 .comment-log {
-  background: #F5FAFB;
-  border: 1px solid var(--teal);
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  max-height: 320px;
+  max-height: 340px;
   overflow-y: auto;
-  font-size: 12.5px;
-  line-height: 1.7;
-  white-space: pre-wrap;
-  color: var(--ink);
 }
+
+.suivi-entry {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.suivi-entry:last-child { border-bottom: none; }
+.suivi-entry-date { font-size: 11px; color: var(--teal); font-weight: 500; white-space: nowrap; padding-top: 1px; flex-shrink: 0; }
+.suivi-entry-text { font-size: 12.5px; color: var(--ink); flex: 1; white-space: pre-wrap; line-height: 1.5; }
+.suivi-entry-actions { display: flex; gap: 2px; flex-shrink: 0; }
+.suivi-entry-actions button {
+  border: none; background: transparent; color: var(--ink-faint); cursor: pointer;
+  font-size: 13px; padding: 2px 5px; border-radius: 4px;
+}
+.suivi-entry-actions button:hover { color: var(--ink); background: var(--accent-bg); }
+.suivi-entry-edit-row > div { flex: 1; }
+.suivi-entry-edit-row textarea { width: 100%; }
+.suivi-entry-edit-row .form-actions { margin-top: 6px; }
 
 .recent-row {
   display: flex; align-items: center; justify-content: space-between;
