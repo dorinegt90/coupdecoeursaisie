@@ -139,6 +139,30 @@ button { font-family: inherit; }
 
 .field textarea { overflow: hidden; }
 
+.modal-header { cursor: move; }
+.modal-header button { cursor: pointer; }
+
+.copy-btn {
+  border: none; background: transparent; color: var(--ink-soft); cursor: pointer;
+  font-size: 12px; padding: 2px 5px; border-radius: 4px; line-height: 1;
+}
+.copy-btn:hover { background: var(--accent-bg); color: var(--accent-dark); }
+.copy-btn.copied { color: var(--teal); }
+
+.suivi-entry { padding: 10px 0; border-bottom: 1px solid rgba(28,135,160,0.15); }
+.suivi-entry:last-child { border-bottom: none; }
+.suivi-entry-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+.suivi-entry-date { font-size: 11px; color: var(--teal); font-weight: 500; }
+.suivi-entry-actions { display: flex; gap: 2px; }
+.suivi-entry-actions button {
+  border: none; background: transparent; color: var(--ink-faint); cursor: pointer;
+  font-size: 12px; padding: 2px 5px; border-radius: 4px;
+}
+.suivi-entry-actions button:hover { color: var(--ink); background: rgba(28,135,160,0.1); }
+.suivi-entry-text { font-size: 12.5px; line-height: 1.6; white-space: pre-wrap; }
+.suivi-entry-edit textarea { width: 100%; margin-top: 4px; }
+.suivi-entry-edit .form-actions { margin-top: 6px; }
+
 .comment-log {
   background: #F5FAFB;
   border: 1px solid var(--teal);
