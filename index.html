@@ -55,7 +55,11 @@
   <!-- ---------------- TABLEAU DE BORD ---------------- -->
   <div id="view-dashboard" class="view">
     <div class="dash-header">
-      <span class="dash-period" id="dash-period-label">Semaine complète : —</span>
+      <div class="dash-period">
+        <button class="period-arrow" id="period-arrow-prev" onclick="shiftPeriod(-1)">◀</button>
+        <span id="dash-period-label">Semaine complète : —</span>
+        <button class="period-arrow" id="period-arrow-next" onclick="shiftPeriod(1)">▶</button>
+      </div>
       <div class="period-toggle">
         <button id="mode-week" class="active" onclick="setPeriodMode('week')">Semaine</button>
         <button id="mode-month" onclick="setPeriodMode('month')">Mois</button>
