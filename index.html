@@ -270,7 +270,7 @@
       <button class="btn-primary" onclick="saveStatusChange()">Enregistrer le statut</button>
     </div>
 
-    <div class="detail-section-title">Historique (du plus récent au plus ancien)</div>
+    <div class="detail-section-title">Historique</div>
     <div id="detail-history-list"><div class="empty-state">Aucun historique</div></div>
 
     <div class="form-actions" style="margin-top:18px;">
@@ -285,7 +285,13 @@
     <div class="modal-header">
       <div class="modal-title">
         <div class="avatar" id="adh-avatar" style="width:34px;height:34px;font-size:13px;">--</div>
-        <span id="adh-name">—</span>
+        <div>
+          <div id="adh-name" style="font-weight:600;">—</div>
+          <div style="display:flex;align-items:center;gap:4px;margin-top:2px;">
+            <span id="adh-email" style="font-size:12px;color:var(--ink-soft);">—</span>
+            <button class="copy-btn" onclick="copyFieldText('adh-email', this)" title="Copier l'email">⧉</button>
+          </div>
+        </div>
       </div>
       <button class="icon-btn" onclick="closeAdherentDetail()">✕</button>
     </div>
@@ -293,11 +299,11 @@
       <div class="detail-field"><div class="label">Âge</div><div class="value" id="adh-age">—</div></div>
       <div class="detail-field"><div class="label">Téléphone</div><div class="value" id="adh-telephone">—</div></div>
     </div>
-    <div class="detail-section-title">Commentaire interne</div>
+    <div class="detail-section-title">Suivi</div>
     <div id="adh-comment-log" class="comment-log"></div>
     <div class="field" style="margin-top:12px;margin-bottom:8px;">
       <label>Ajouter un commentaire</label>
-      <textarea id="adh-new-comment" rows="3" oninput="autoGrow(this)"></textarea>
+      <textarea id="adh-new-comment" rows="7" oninput="autoGrow(this)"></textarea>
     </div>
     <div class="form-actions">
       <button class="btn-primary" onclick="saveAdherentComment()">Enregistrer le commentaire</button>
