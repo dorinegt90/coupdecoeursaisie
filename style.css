@@ -149,12 +149,11 @@ button { font-family: inherit; }
 .copy-btn:hover { background: var(--accent-bg); color: var(--accent-dark); }
 .copy-btn.copied { color: var(--teal); }
 
-.suivi-entry { position: relative; padding: 10px 44px 10px 0; border-bottom: 1px solid rgba(28,135,160,0.15); }
+.suivi-entry { padding: 10px 0; border-bottom: 1px solid rgba(28,135,160,0.15); }
 .suivi-entry:last-child { border-bottom: none; }
-.suivi-entry-header { margin-bottom: 4px; }
+.suivi-entry-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
 .suivi-entry-date { font-size: 11px; color: var(--teal); font-weight: 500; }
-.suivi-entry-actions { position: absolute; top: 10px; right: 0; display: flex; gap: 2px; opacity: 0; transition: opacity 0.15s; }
-.suivi-entry:hover .suivi-entry-actions { opacity: 1; }
+.suivi-entry-actions { display: flex; gap: 2px; }
 .suivi-entry-actions button {
   border: none; background: transparent; color: var(--ink-faint); cursor: pointer;
   font-size: 12px; padding: 2px 5px; border-radius: 4px;
