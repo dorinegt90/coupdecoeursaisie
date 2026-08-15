@@ -55,34 +55,24 @@
   <!-- ---------------- TABLEAU DE BORD ---------------- -->
   <div id="view-dashboard" class="view">
     <div class="dash-header">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span class="dash-period" id="dash-period-label">Semaine complète : —</span>
-        <button class="icon-btn" onclick="togglePeriodPanel()" title="Changer la période">🗓</button>
-      </div>
-    </div>
-
-    <div id="period-panel" class="period-panel hidden">
-      <div class="period-mode-tabs">
+      <span class="dash-period" id="dash-period-label">Semaine complète : —</span>
+      <div class="period-toggle">
         <button id="mode-week" class="active" onclick="setPeriodMode('week')">Semaine</button>
         <button id="mode-month" onclick="setPeriodMode('month')">Mois</button>
         <button id="mode-custom" onclick="setPeriodMode('custom')">Personnalisé</button>
       </div>
-      <div id="period-nav-arrows" class="period-nav-arrows">
-        <button onclick="shiftPeriod(-1)">◀</button>
-        <span id="period-nav-label"></span>
-        <button onclick="shiftPeriod(1)">▶</button>
+    </div>
+
+    <div id="period-custom-fields" class="period-panel hidden">
+      <div class="form-grid grid-2">
+        <div class="field"><label>Du</label><input type="date" id="custom-start" onchange="applyCustomPeriod()"></div>
+        <div class="field"><label>Au</label><input type="date" id="custom-end" onchange="applyCustomPeriod()"></div>
       </div>
-      <div id="period-custom-fields" class="hidden">
-        <div class="form-grid grid-2">
-          <div class="field"><label>Du</label><input type="date" id="custom-start" onchange="applyCustomPeriod()"></div>
-          <div class="field"><label>Au</label><input type="date" id="custom-end" onchange="applyCustomPeriod()"></div>
-        </div>
-        <div class="period-shortcuts">
-          <span onclick="applyShortcut(7)">7 derniers jours</span>
-          <span onclick="applyShortcut(14)">14 derniers jours</span>
-          <span onclick="applyShortcut(30)">30 derniers jours</span>
-          <span onclick="applyShortcut(90)">3 derniers mois</span>
-        </div>
+      <div class="period-shortcuts">
+        <span onclick="applyShortcut(7)">7 derniers jours</span>
+        <span onclick="applyShortcut(14)">14 derniers jours</span>
+        <span onclick="applyShortcut(30)">30 derniers jours</span>
+        <span onclick="applyShortcut(90)">3 derniers mois</span>
       </div>
     </div>
     <div class="stat-grid">
@@ -191,6 +181,7 @@
             <th onclick="sortTable('adherents','statut')">Statut<span class="sort-arrow" data-field="statut"></span></th>
             <th onclick="sortTable('adherents','prenom')">Prénom<span class="sort-arrow" data-field="prenom"></span></th>
             <th onclick="sortTable('adherents','nom')">Nom<span class="sort-arrow" data-field="nom"></span></th>
+            <th onclick="sortTable('adherents','formule')">Formule<span class="sort-arrow" data-field="formule"></span></th>
             <th onclick="sortTable('adherents','commentaire')">Dernier commentaire<span class="sort-arrow" data-field="commentaire"></span></th>
             <th onclick="sortTable('adherents','date_maj')">Dernière mise à jour<span class="sort-arrow" data-field="date_maj"></span></th>
           </tr>
