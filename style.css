@@ -127,7 +127,29 @@ button { font-family: inherit; }
 .stat-card.c3 { background: var(--badge-prospect-bg); } .stat-card.c3 .stat-value{color:#0F4E5C;} .stat-card.c3 .stat-label{color:var(--badge-prospect-text);}
 .stat-card.c4 { background: #EFE6DA; } .stat-card.c4 .stat-value{color:#5C4507;} .stat-card.c4 .stat-label{color:#8A6710;}
 
-.stat-card-clickable { cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s; }
+.period-panel {
+  background: #fff; border: 0.5px solid var(--border); border-radius: var(--radius);
+  padding: 14px; margin-bottom: 16px;
+}
+.period-mode-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+.period-mode-tabs button {
+  border: none; background: transparent; color: var(--ink-soft);
+  font-size: 11px; padding: 5px 14px; border-radius: 20px; cursor: pointer; font-family: inherit;
+}
+.period-mode-tabs button.active { background: var(--accent); color: #fff; }
+.period-nav-arrows { display: flex; align-items: center; justify-content: center; gap: 18px; }
+.period-nav-arrows button {
+  border: none; background: var(--accent-bg); color: var(--accent-dark);
+  width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 12px;
+}
+.period-nav-arrows span { font-size: 13px; font-weight: 500; color: var(--ink); }
+.period-shortcuts { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.period-shortcuts span {
+  border: 0.5px solid var(--border); color: var(--ink-soft); font-size: 11px;
+  padding: 5px 12px; border-radius: 20px; cursor: pointer;
+}
+.period-shortcuts span:hover { border-color: var(--teal); color: var(--teal); }
+
 .stat-card-clickable:hover { border-color: rgba(0,0,0,0.12); }
 .stat-card-clickable.active-filter { border-color: var(--dark); }
 
@@ -148,20 +170,6 @@ button { font-family: inherit; }
 }
 .copy-btn:hover { background: var(--accent-bg); color: var(--accent-dark); }
 .copy-btn.copied { color: var(--teal); }
-
-.suivi-entry { padding: 10px 0; border-bottom: 1px solid rgba(28,135,160,0.15); }
-.suivi-entry:last-child { border-bottom: none; }
-.suivi-entry-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
-.suivi-entry-date { font-size: 11px; color: var(--teal); font-weight: 500; }
-.suivi-entry-actions { display: flex; gap: 2px; }
-.suivi-entry-actions button {
-  border: none; background: transparent; color: var(--ink-faint); cursor: pointer;
-  font-size: 12px; padding: 2px 5px; border-radius: 4px;
-}
-.suivi-entry-actions button:hover { color: var(--ink); background: rgba(28,135,160,0.1); }
-.suivi-entry-text { font-size: 12.5px; line-height: 1.6; white-space: pre-wrap; }
-.suivi-entry-edit textarea { width: 100%; margin-top: 4px; }
-.suivi-entry-edit .form-actions { margin-top: 6px; }
 
 .comment-log {
   background: #F5FAFB;
