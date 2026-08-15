@@ -6,9 +6,11 @@ let contacts = [];
 let statutHistorique = [];
 let adhesions = [];
 let suiviHistorique = [];
-let currentPeriod = 'week';
+let periodMode = 'week'; // 'week' | 'month' | 'custom'
+let periodOffset = 0;
+let customStart = null;
+let customEnd = null;
 let currentDetailContact = null;
-let editingSuiviId = null;
 let dashboardFilter = null; // null | 'nouveaux' | 'decouverte' | 'signatures' | 'ca'
 
 const FILTER_LABELS = {
@@ -246,19 +248,71 @@ function formatDateTimeFR(dateStr) {
 }
 
 // ---------------------------------------------------------
-// Tableau de bord
+// Tableau de bord — période (semaine / mois / personnalisé)
 // ---------------------------------------------------------
-function setPeriod(period) {
-  currentPeriod = period;
-  document.getElementById('period-week').classList.toggle('active', period === 'week');
-  document.getElementById('period-month').classList.toggle('active', period === 'month');
+function togglePeriodPanel() {
+  document.getElementById('period-panel').classList.toggle('hidden');
+}
+
+function setPeriodMode(mode) {
+  periodMode = mode;
+  periodOffset = 0;
+  document.getElementById('mode-week').classList.toggle('active', mode === 'week');
+  document.getElementById('mode-month').classList.toggle('active', mode === 'month');
+  document.getElementById('mode-custom').classList.toggle('active', mode === 'custom');
+  document.getElementById('period-nav-arrows').classList.toggle('hidden', mode === 'custom');
+  document.getElementById('period-custom-fields').classList.toggle('hidden', mode !== 'custom');
+
+  if (mode === 'custom' && !customStart) {
+    const now = new Date();
+    customStart = startOfWeek(now).toISOString().slice(0, 10);
+    customEnd = endOfWeek(now).toISOString().slice(0, 10);
+    document.getElementById('custom-start').value = customStart;
+    document.getElementById('custom-end').value = customEnd;
+  }
   renderDashboard();
 }
 
-function computeStats(period) {
-  const now = new Date();
-  const start = period === 'week' ? startOfWeek(now) : startOfMonth(now);
-  const end = period === 'week' ? endOfWeek(now) : endOfMonth(now);
+function shiftPeriod(dir) {
+  periodOffset += dir;
+  renderDashboard();
+}
+
+function applyCustomPeriod() {
+  customStart = document.getElementById('custom-start').value;
+  customEnd = document.getElementById('custom-end').value;
+  renderDashboard();
+}
+
+function applyShortcut(days) {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - (days - 1));
+  customStart = start.toISOString().slice(0, 10);
+  customEnd = end.toISOString().slice(0, 10);
+  document.getElementById('custom-start').value = customStart;
+  document.getElementById('custom-end').value = customEnd;
+  renderDashboard();
+}
+
+function getPeriodRange() {
+  if (periodMode === 'week') {
+    const ref = new Date();
+    ref.setDate(ref.getDate() + periodOffset * 7);
+    return { start: startOfWeek(ref), end: endOfWeek(ref) };
+  }
+  if (periodMode === 'month') {
+    const ref = new Date();
+    ref.setMonth(ref.getMonth() + periodOffset);
+    return { start: startOfMonth(ref), end: endOfMonth(ref) };
+  }
+  const s = customStart ? new Date(customStart + 'T00:00:00') : startOfWeek(new Date());
+  const e = customEnd ? new Date(customEnd + 'T23:59:59') : endOfWeek(new Date());
+  return { start: s, end: e };
+}
+
+function computeStats() {
+  const { start, end } = getPeriodRange();
 
   const nouveaux = contacts.filter(c => inRange(c.created_at, start, end)).length;
   const decouverteIds = new Set();
@@ -307,18 +361,23 @@ function clearDashboardFilter() {
   renderDashboard();
 }
 
+function periodLabel(mode, start, end) {
+  if (mode === 'week') return `Semaine complète : ${formatDateFR(start, true)} — ${formatDateFR(end, true)}`;
+  if (mode === 'month') return `Mois complet : ${start.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
+  return `Période personnalisée : ${formatDateFR(start, true)} — ${formatDateFR(end, true)}`;
+}
+
 function renderDashboard() {
-  const stats = computeStats(currentPeriod);
+  const stats = computeStats();
 
   document.getElementById('stat-nouveaux').textContent = stats.nouveaux;
   document.getElementById('stat-decouverte').textContent = stats.decouverte;
   document.getElementById('stat-signatures').textContent = stats.signatures;
   document.getElementById('stat-ca').textContent = stats.ca.toLocaleString('fr-FR', { minimumFractionDigits: 0 }) + ' €';
 
-  const label = currentPeriod === 'week'
-    ? `Semaine complète : ${formatDateFR(stats.start, true)} — ${formatDateFR(stats.end, true)}`
-    : `Mois complet : ${stats.start.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
+  const label = periodLabel(periodMode, stats.start, stats.end);
   document.getElementById('dash-period-label').textContent = label;
+  document.getElementById('period-nav-label').textContent = label;
 
   ['nouveaux', 'decouverte', 'signatures', 'ca'].forEach(type => {
     document.getElementById(`stat-card-${type}`).classList.toggle('active-filter', dashboardFilter === type);
@@ -328,10 +387,12 @@ function renderDashboard() {
   const titleEl = document.getElementById('recent-list-title');
   const clearBtn = document.getElementById('clear-dashboard-filter');
 
+  const periodWord = periodMode === 'week' ? 'cette semaine' : periodMode === 'month' ? 'ce mois' : 'cette période';
+
   let list;
   if (dashboardFilter) {
     list = getDashboardFilterContacts(dashboardFilter, stats.start, stats.end);
-    titleEl.textContent = `${FILTER_LABELS[dashboardFilter]} (${currentPeriod === 'week' ? 'cette semaine' : 'ce mois'})`;
+    titleEl.textContent = `${FILTER_LABELS[dashboardFilter]} (${periodWord})`;
     clearBtn.classList.remove('hidden');
   } else {
     list = [...contacts].slice(0, 5);
@@ -527,14 +588,41 @@ function renderContactsTable() {
 function buildAdherentRows() {
   return contacts
     .filter(c => c.statut_actuel === 'Adhérent')
-    .map(c => ({
-      id: c.id, statut: c.statut_actuel, prenom: c.prenom, nom: c.nom,
-      commentaire: getLatestComment(c.id), date_maj: getLastActivityDate(c.id),
-    }));
+    .map(c => {
+      const adh = getAdhesion(c.id);
+      return {
+        id: c.id, statut: c.statut_actuel, prenom: c.prenom, nom: c.nom,
+        commentaire: getLatestComment(c.id), date_maj: getLastActivityDate(c.id),
+        formule: adh ? adh.type_formule : null,
+      };
+    });
+}
+
+function resetAdherentsFilters() {
+  document.getElementById('adherents-search-input').value = '';
+  document.getElementById('filter-formule').value = '';
+  document.getElementById('filter-maj-depuis').value = '';
+  document.getElementById('filter-maj-jusqua').value = '';
+  renderAdherentsTable();
 }
 
 function renderAdherentsTable() {
-  let rows = buildAdherentRows();
+  const search = document.getElementById('adherents-search-input').value.trim().toLowerCase();
+  const formuleFilter = document.getElementById('filter-formule').value;
+  const majDepuis = document.getElementById('filter-maj-depuis').value;
+  const majJusqua = document.getElementById('filter-maj-jusqua').value;
+
+  let rows = buildAdherentRows().filter(r => {
+    if (search) {
+      const hay = [r.prenom, r.nom, r.commentaire].join(' ').toLowerCase();
+      if (!hay.includes(search)) return false;
+    }
+    if (formuleFilter && r.formule !== formuleFilter) return false;
+    if (majDepuis && new Date(r.date_maj) < new Date(majDepuis + 'T00:00:00')) return false;
+    if (majJusqua && new Date(r.date_maj) > new Date(majJusqua + 'T23:59:59')) return false;
+    return true;
+  });
+
   rows.sort((a, b) => {
     const res = compareRows(a, b, adherentsSort.field);
     return adherentsSort.dir === 'asc' ? res : -res;
@@ -542,7 +630,7 @@ function renderAdherentsTable() {
 
   const tbody = document.getElementById('adherents-table-body');
   if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Aucun adhérent pour le moment</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Aucun adhérent ne correspond</td></tr>`;
   } else {
     tbody.innerHTML = rows.map(r => `
       <tr onclick="openAdherentDetail('${r.id}')">
@@ -837,7 +925,6 @@ function openAdherentDetail(id) {
   const c = contacts.find(x => x.id === id);
   if (!c) return;
   currentDetailContact = c;
-  editingSuiviId = null;
 
   document.getElementById('adh-avatar').textContent = initials(c);
   document.getElementById('adh-avatar').style.background = getAvatarColor(c.statut_actuel);
@@ -855,74 +942,17 @@ function openAdherentDetail(id) {
 function closeAdherentDetail() {
   document.getElementById('modal-adherent-detail').classList.add('hidden');
   currentDetailContact = null;
-  editingSuiviId = null;
 }
 
 function renderCommentLog(contactId) {
   const el = document.getElementById('adh-comment-log');
   const entries = getSuiviFor(contactId);
-
   if (entries.length === 0) {
-    el.innerHTML = '<div class="empty-state">Aucun commentaire pour le moment.</div>';
+    el.textContent = 'Aucun commentaire pour le moment.';
     return;
   }
-
-  el.innerHTML = entries.map(e => {
-    if (editingSuiviId === e.id) {
-      return `
-        <div class="suivi-entry suivi-entry-edit">
-          <div class="suivi-entry-header"><span class="suivi-entry-date">${formatDateShort(e.date_commentaire)}</span></div>
-          <textarea id="edit-suivi-${e.id}" oninput="autoGrow(this)">${escapeHtml(e.commentaire)}</textarea>
-          <div class="form-actions">
-            <button class="btn-secondary" onclick="cancelEditSuivi()">Annuler</button>
-            <button class="btn-primary" onclick="saveEditSuivi('${e.id}')">Enregistrer</button>
-          </div>
-        </div>`;
-    }
-    return `
-      <div class="suivi-entry">
-        <div class="suivi-entry-header">
-          <span class="suivi-entry-date">${formatDateShort(e.date_commentaire)}</span>
-          <span class="suivi-entry-actions">
-            <button onclick="startEditSuivi('${e.id}')" title="Modifier">✎</button>
-            <button onclick="deleteSuiviEntry('${e.id}')" title="Supprimer">🗑</button>
-          </span>
-        </div>
-        <div class="suivi-entry-text">${escapeHtml(e.commentaire)}</div>
-      </div>`;
-  }).join('');
-
+  el.textContent = entries.map(e => `${formatDateShort(e.date_commentaire)} : ${e.commentaire}`).join('\n\n');
   el.scrollTop = el.scrollHeight;
-  if (editingSuiviId) {
-    const ta = document.getElementById(`edit-suivi-${editingSuiviId}`);
-    if (ta) autoGrow(ta);
-  }
-}
-
-function startEditSuivi(id) {
-  editingSuiviId = id;
-  renderCommentLog(currentDetailContact.id);
-}
-function cancelEditSuivi() {
-  editingSuiviId = null;
-  renderCommentLog(currentDetailContact.id);
-}
-async function saveEditSuivi(id) {
-  const ta = document.getElementById(`edit-suivi-${id}`);
-  const text = ta.value.trim();
-  if (!text) { alert('Le commentaire ne peut pas être vide.'); return; }
-  const { error } = await supabaseClient.from('suivi_historique').update({ commentaire: text }).eq('id', id);
-  if (error) { alert("Erreur à la modification : " + error.message); return; }
-  editingSuiviId = null;
-  await loadAllData();
-  openAdherentDetail(currentDetailContact.id);
-}
-async function deleteSuiviEntry(id) {
-  if (!confirm('Supprimer ce commentaire ?')) return;
-  const { error } = await supabaseClient.from('suivi_historique').delete().eq('id', id);
-  if (error) { alert("Erreur à la suppression : " + error.message); return; }
-  await loadAllData();
-  openAdherentDetail(currentDetailContact.id);
 }
 
 async function saveAdherentComment() {
