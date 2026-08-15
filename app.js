@@ -7,10 +7,10 @@ let statutHistorique = [];
 let adhesions = [];
 let suiviHistorique = [];
 let periodMode = 'week'; // 'week' | 'month' | 'custom'
-let periodOffset = 0;
 let customStart = null;
 let customEnd = null;
 let currentDetailContact = null;
+let editingSuiviId = null;
 let dashboardFilter = null; // null | 'nouveaux' | 'decouverte' | 'signatures' | 'ca'
 
 const FILTER_LABELS = {
@@ -250,17 +250,11 @@ function formatDateTimeFR(dateStr) {
 // ---------------------------------------------------------
 // Tableau de bord — période (semaine / mois / personnalisé)
 // ---------------------------------------------------------
-function togglePeriodPanel() {
-  document.getElementById('period-panel').classList.toggle('hidden');
-}
-
 function setPeriodMode(mode) {
   periodMode = mode;
-  periodOffset = 0;
   document.getElementById('mode-week').classList.toggle('active', mode === 'week');
   document.getElementById('mode-month').classList.toggle('active', mode === 'month');
   document.getElementById('mode-custom').classList.toggle('active', mode === 'custom');
-  document.getElementById('period-nav-arrows').classList.toggle('hidden', mode === 'custom');
   document.getElementById('period-custom-fields').classList.toggle('hidden', mode !== 'custom');
 
   if (mode === 'custom' && !customStart) {
@@ -270,11 +264,6 @@ function setPeriodMode(mode) {
     document.getElementById('custom-start').value = customStart;
     document.getElementById('custom-end').value = customEnd;
   }
-  renderDashboard();
-}
-
-function shiftPeriod(dir) {
-  periodOffset += dir;
   renderDashboard();
 }
 
@@ -296,18 +285,11 @@ function applyShortcut(days) {
 }
 
 function getPeriodRange() {
-  if (periodMode === 'week') {
-    const ref = new Date();
-    ref.setDate(ref.getDate() + periodOffset * 7);
-    return { start: startOfWeek(ref), end: endOfWeek(ref) };
-  }
-  if (periodMode === 'month') {
-    const ref = new Date();
-    ref.setMonth(ref.getMonth() + periodOffset);
-    return { start: startOfMonth(ref), end: endOfMonth(ref) };
-  }
-  const s = customStart ? new Date(customStart + 'T00:00:00') : startOfWeek(new Date());
-  const e = customEnd ? new Date(customEnd + 'T23:59:59') : endOfWeek(new Date());
+  const now = new Date();
+  if (periodMode === 'week') return { start: startOfWeek(now), end: endOfWeek(now) };
+  if (periodMode === 'month') return { start: startOfMonth(now), end: endOfMonth(now) };
+  const s = customStart ? new Date(customStart + 'T00:00:00') : startOfWeek(now);
+  const e = customEnd ? new Date(customEnd + 'T23:59:59') : endOfWeek(now);
   return { start: s, end: e };
 }
 
@@ -377,7 +359,6 @@ function renderDashboard() {
 
   const label = periodLabel(periodMode, stats.start, stats.end);
   document.getElementById('dash-period-label').textContent = label;
-  document.getElementById('period-nav-label').textContent = label;
 
   ['nouveaux', 'decouverte', 'signatures', 'ca'].forEach(type => {
     document.getElementById(`stat-card-${type}`).classList.toggle('active-filter', dashboardFilter === type);
@@ -395,7 +376,7 @@ function renderDashboard() {
     titleEl.textContent = `${FILTER_LABELS[dashboardFilter]} (${periodWord})`;
     clearBtn.classList.remove('hidden');
   } else {
-    list = [...contacts].slice(0, 5);
+    list = getDashboardFilterContacts('nouveaux', stats.start, stats.end);
     titleEl.textContent = 'Derniers contacts';
     clearBtn.classList.add('hidden');
   }
@@ -630,13 +611,14 @@ function renderAdherentsTable() {
 
   const tbody = document.getElementById('adherents-table-body');
   if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Aucun adhérent ne correspond</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Aucun adhérent ne correspond</td></tr>`;
   } else {
     tbody.innerHTML = rows.map(r => `
       <tr onclick="openAdherentDetail('${r.id}')">
         <td><span class="badge ${badgeClass(r.statut)}">${r.statut}</span></td>
         <td>${escapeHtml(r.prenom)}</td>
         <td>${escapeHtml(r.nom)}</td>
+        <td>${r.formule ? escapeHtml(r.formule) : '<span class="cell-muted">—</span>'}</td>
         <td class="cell-ellipsis cell-muted">${escapeHtml(r.commentaire || '—')}</td>
         <td>${formatDateTimeFR(r.date_maj)}</td>
       </tr>`
@@ -947,12 +929,68 @@ function closeAdherentDetail() {
 function renderCommentLog(contactId) {
   const el = document.getElementById('adh-comment-log');
   const entries = getSuiviFor(contactId);
+
   if (entries.length === 0) {
-    el.textContent = 'Aucun commentaire pour le moment.';
+    el.innerHTML = '<div class="empty-state">Aucun commentaire pour le moment.</div>';
     return;
   }
-  el.textContent = entries.map(e => `${formatDateShort(e.date_commentaire)} : ${e.commentaire}`).join('\n\n');
+
+  el.innerHTML = entries.map(e => {
+    if (editingSuiviId === e.id) {
+      return `
+        <div class="suivi-entry suivi-entry-edit-row">
+          <span class="suivi-entry-date">${formatDateShort(e.date_commentaire)}</span>
+          <div>
+            <textarea id="edit-suivi-${e.id}" oninput="autoGrow(this)">${escapeHtml(e.commentaire)}</textarea>
+            <div class="form-actions">
+              <button class="btn-secondary" onclick="cancelEditSuivi()">Annuler</button>
+              <button class="btn-primary" onclick="saveEditSuivi('${e.id}')">Enregistrer</button>
+            </div>
+          </div>
+        </div>`;
+    }
+    return `
+      <div class="suivi-entry">
+        <span class="suivi-entry-date">${formatDateShort(e.date_commentaire)}</span>
+        <span class="suivi-entry-text">${escapeHtml(e.commentaire)}</span>
+        <span class="suivi-entry-actions">
+          <button onclick="startEditSuivi('${e.id}')" title="Modifier">✎</button>
+          <button onclick="deleteSuiviEntry('${e.id}')" title="Supprimer">🗑</button>
+        </span>
+      </div>`;
+  }).join('');
+
   el.scrollTop = el.scrollHeight;
+  if (editingSuiviId) {
+    const ta = document.getElementById(`edit-suivi-${editingSuiviId}`);
+    if (ta) autoGrow(ta);
+  }
+}
+
+function startEditSuivi(id) {
+  editingSuiviId = id;
+  renderCommentLog(currentDetailContact.id);
+}
+function cancelEditSuivi() {
+  editingSuiviId = null;
+  renderCommentLog(currentDetailContact.id);
+}
+async function saveEditSuivi(id) {
+  const ta = document.getElementById(`edit-suivi-${id}`);
+  const text = ta.value.trim();
+  if (!text) { alert('Le commentaire ne peut pas être vide.'); return; }
+  const { error } = await supabaseClient.from('suivi_historique').update({ commentaire: text }).eq('id', id);
+  if (error) { alert("Erreur à la modification : " + error.message); return; }
+  editingSuiviId = null;
+  await loadAllData();
+  openAdherentDetail(currentDetailContact.id);
+}
+async function deleteSuiviEntry(id) {
+  if (!confirm('Supprimer ce commentaire ?')) return;
+  const { error } = await supabaseClient.from('suivi_historique').delete().eq('id', id);
+  if (error) { alert("Erreur à la suppression : " + error.message); return; }
+  await loadAllData();
+  openAdherentDetail(currentDetailContact.id);
 }
 
 async function saveAdherentComment() {
