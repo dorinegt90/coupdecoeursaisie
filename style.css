@@ -110,7 +110,13 @@ button { font-family: inherit; }
 
 /* ---------- Dashboard ---------- */
 .dash-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.dash-period { font-size: 13px; font-weight: 500; }
+.dash-period { display: flex; align-items: center; gap: 10px; font-size: 13px; font-weight: 500; }
+.period-arrow {
+  border: none; background: var(--accent-bg); color: var(--accent-dark);
+  width: 24px; height: 24px; border-radius: 50%; cursor: pointer; font-size: 11px; flex-shrink: 0;
+}
+.period-arrow:hover { background: var(--accent); color: #fff; }
+.period-arrow.hidden-arrow { visibility: hidden; }
 .period-toggle { display: flex; gap: 4px; }
 .period-toggle button {
   border: none; background: transparent; color: var(--ink-soft);
@@ -233,15 +239,18 @@ button { font-family: inherit; }
 .table-scroll { overflow-x: auto; }
 table.data-table { border-collapse: collapse; width: 100%; }
 table.data-table.contacts-wide { min-width: 1250px; }
+table.data-table thead tr { background: var(--dark); }
 table.data-table th {
-  text-align: left; padding: 8px 12px; font-size: 10.5px; color: var(--ink-soft);
-  font-weight: 400; white-space: nowrap; border-bottom: 0.5px solid var(--border);
+  text-align: left; padding: 10px 12px; font-size: 11px; color: var(--cream);
+  font-weight: 500; white-space: nowrap; border-bottom: none;
   cursor: pointer; user-select: none;
 }
-table.data-table th:hover { color: var(--ink); }
-.sort-arrow { font-size: 9px; margin-left: 3px; color: var(--accent); }
+table.data-table th:hover { color: #fff; }
+.sort-arrow { font-size: 9px; margin-left: 3px; color: var(--cream); opacity: 0.8; }
 table.data-table td { padding: 9px 12px; font-size: 11.5px; white-space: nowrap; }
-table.data-table tbody tr { border-top: 0.5px solid var(--border); cursor: pointer; }
+table.data-table tbody tr { cursor: pointer; }
+table.data-table tbody tr:nth-child(odd) { background: #fff; }
+table.data-table tbody tr:nth-child(even) { background: var(--bg); }
 table.data-table tbody tr:hover { background: var(--accent-bg); }
 .cell-ellipsis { max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
 .cell-muted { color: var(--ink-soft); }
