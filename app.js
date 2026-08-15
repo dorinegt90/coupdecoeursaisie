@@ -7,6 +7,7 @@ let statutHistorique = [];
 let adhesions = [];
 let suiviHistorique = [];
 let periodMode = 'week'; // 'week' | 'month' | 'custom'
+let periodOffset = 0;
 let customStart = null;
 let customEnd = null;
 let currentDetailContact = null;
@@ -252,6 +253,7 @@ function formatDateTimeFR(dateStr) {
 // ---------------------------------------------------------
 function setPeriodMode(mode) {
   periodMode = mode;
+  periodOffset = 0;
   document.getElementById('mode-week').classList.toggle('active', mode === 'week');
   document.getElementById('mode-month').classList.toggle('active', mode === 'month');
   document.getElementById('mode-custom').classList.toggle('active', mode === 'custom');
@@ -264,6 +266,12 @@ function setPeriodMode(mode) {
     document.getElementById('custom-start').value = customStart;
     document.getElementById('custom-end').value = customEnd;
   }
+  renderDashboard();
+}
+
+function shiftPeriod(dir) {
+  if (periodMode === 'custom') return;
+  periodOffset += dir;
   renderDashboard();
 }
 
@@ -286,8 +294,16 @@ function applyShortcut(days) {
 
 function getPeriodRange() {
   const now = new Date();
-  if (periodMode === 'week') return { start: startOfWeek(now), end: endOfWeek(now) };
-  if (periodMode === 'month') return { start: startOfMonth(now), end: endOfMonth(now) };
+  if (periodMode === 'week') {
+    const ref = new Date(now);
+    ref.setDate(ref.getDate() + periodOffset * 7);
+    return { start: startOfWeek(ref), end: endOfWeek(ref) };
+  }
+  if (periodMode === 'month') {
+    const ref = new Date(now);
+    ref.setMonth(ref.getMonth() + periodOffset);
+    return { start: startOfMonth(ref), end: endOfMonth(ref) };
+  }
   const s = customStart ? new Date(customStart + 'T00:00:00') : startOfWeek(now);
   const e = customEnd ? new Date(customEnd + 'T23:59:59') : endOfWeek(now);
   return { start: s, end: e };
@@ -359,6 +375,8 @@ function renderDashboard() {
 
   const label = periodLabel(periodMode, stats.start, stats.end);
   document.getElementById('dash-period-label').textContent = label;
+  document.getElementById('period-arrow-prev').classList.toggle('hidden-arrow', periodMode === 'custom');
+  document.getElementById('period-arrow-next').classList.toggle('hidden-arrow', periodMode === 'custom');
 
   ['nouveaux', 'decouverte', 'signatures', 'ca'].forEach(type => {
     document.getElementById(`stat-card-${type}`).classList.toggle('active-filter', dashboardFilter === type);
@@ -375,8 +393,12 @@ function renderDashboard() {
     list = getDashboardFilterContacts(dashboardFilter, stats.start, stats.end);
     titleEl.textContent = `${FILTER_LABELS[dashboardFilter]} (${periodWord})`;
     clearBtn.classList.remove('hidden');
-  } else {
+  } else if (periodMode === 'custom') {
     list = getDashboardFilterContacts('nouveaux', stats.start, stats.end);
+    titleEl.textContent = 'Nouveaux contacts (période personnalisée)';
+    clearBtn.classList.add('hidden');
+  } else {
+    list = [...contacts].slice(0, 5);
     titleEl.textContent = 'Derniers contacts';
     clearBtn.classList.add('hidden');
   }
