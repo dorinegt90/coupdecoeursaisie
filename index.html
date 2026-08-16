@@ -46,6 +46,9 @@
         <button class="tab-btn active" id="tab-dashboard" onclick="switchTab('dashboard')">Tableau de bord</button>
       </div>
       <div class="action-group">
+        <button class="backup-icon-btn" onclick="openBackupModal()" title="Sauvegarde">
+          💾<span id="backup-badge-dot" class="backup-badge-dot hidden"></span>
+        </button>
         <button class="btn-primary" onclick="openContactForm()">+ Ajouter un contact</button>
         <button class="btn-secondary" onclick="handleLogout()">Déconnexion</button>
       </div>
@@ -358,6 +361,58 @@
     </div>
     <div class="form-actions">
       <button class="btn-primary" onclick="saveAdherentComment()">Enregistrer le commentaire</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODALE : SAUVEGARDE ================= -->
+<div id="modal-backup" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:380px;">
+    <div class="modal-header">
+      <div class="modal-title"><span style="font-weight:600;">Sauvegarde</span></div>
+      <button class="icon-btn" onclick="closeBackupModal()">✕</button>
+    </div>
+    <p id="backup-last-info" style="font-size:12.5px;color:var(--ink-soft);margin:0 0 6px;"></p>
+    <p id="backup-reminder-info" style="font-size:12.5px;color:var(--ink-soft);margin:0 0 18px;"></p>
+    <div class="form-actions" style="justify-content:stretch;">
+      <button class="btn-primary" style="flex:1;justify-content:center;" onclick="performBackup()">Sauvegarder maintenant</button>
+      <button class="btn-secondary" onclick="snoozeBackup()">Plus tard</button>
+    </div>
+    <div style="text-align:center;margin-top:12px;">
+      <span style="font-size:11px;color:var(--ink-faint);cursor:pointer;" onclick="openBackupSettings()">⚙ Paramétrer ce rappel</span>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODALE : PARAMÈTRES DE SAUVEGARDE ================= -->
+<div id="modal-backup-settings" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:440px;">
+    <div class="modal-header">
+      <div class="modal-title"><span style="font-weight:600;">Paramètres de sauvegarde</span></div>
+      <button class="icon-btn" onclick="closeBackupSettings()">✕</button>
+    </div>
+    <div class="form-grid grid-2">
+      <div class="field"><label>Me rappeler tous les (jours)</label><input type="number" id="settings-reminder-days" min="1" value="7"></div>
+      <div class="field"><label>Si "Plus tard", relancer après (jours)</label><input type="number" id="settings-snooze-days" min="1" value="1"></div>
+    </div>
+    <div class="field" style="margin-bottom:12px;">
+      <label>Format d'export</label>
+      <div style="display:flex;gap:8px;">
+        <div id="format-csv" class="format-choice format-active" onclick="selectFormat('csv')">CSV</div>
+        <div id="format-json" class="format-choice" onclick="selectFormat('json')">JSON</div>
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:16px;">
+      <label>Dossier de destination</label>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div id="backup-folder-label" style="flex:1;border:0.5px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--ink-soft);">Aucun dossier choisi</div>
+        <button class="btn-secondary" onclick="chooseBackupFolder()">Choisir…</button>
+      </div>
+      <div style="font-size:10px;color:var(--ink-faint);margin-top:5px;">Disponible sur Chrome / Edge. Sur les autres navigateurs, une fenêtre "Enregistrer sous" s'ouvrira à chaque fois.</div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="closeBackupSettings()">Annuler</button>
+      <button class="btn-primary" onclick="saveBackupSettings()">Enregistrer</button>
     </div>
   </div>
 </div>
