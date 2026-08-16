@@ -144,6 +144,7 @@ button { font-family: inherit; }
 }
 .period-shortcuts span:hover { border-color: var(--teal); color: var(--teal); }
 
+.stat-card-clickable { cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s; }
 .stat-card-clickable:hover { border-color: rgba(0,0,0,0.12); }
 .stat-card-clickable.active-filter { border-color: var(--dark); }
 
