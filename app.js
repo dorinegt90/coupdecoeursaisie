@@ -86,6 +86,7 @@ function showApp() {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app-shell').classList.remove('hidden');
   loadAllData();
+  checkBackupReminder();
 }
 
 async function handleLogin() {
@@ -1036,4 +1037,216 @@ async function deleteCurrentContact() {
   if (error) { alert("Erreur à la suppression : " + error.message); return; }
   closeContactDetail();
   await loadAllData();
+}
+
+// ---------------------------------------------------------
+// Sauvegarde : export, dossier persistant, rappel, snooze
+// ---------------------------------------------------------
+function idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('coeur-crm-backup', 1);
+    req.onupgradeneeded = () => req.result.createObjectStore('kv');
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function idbGet(key) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('kv', 'readonly');
+    const r = tx.objectStore('kv').get(key);
+    r.onsuccess = () => resolve(r.result || null);
+    r.onerror = () => reject(r.error);
+  });
+}
+async function idbSet(key, value) {
+  const db = await idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('kv', 'readwrite');
+    tx.objectStore('kv').put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function toCSV(rows) {
+  if (!rows || rows.length === 0) return '';
+  const headers = Object.keys(rows[0]);
+  const esc = (v) => {
+    if (v === null || v === undefined) return '';
+    const s = String(v);
+    return /[",\n;]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const lines = [headers.join(',')];
+  rows.forEach(r => lines.push(headers.map(h => esc(r[h])).join(',')));
+  return lines.join('\n');
+}
+
+function triggerDownload(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+async function writeFile(filename, content, mime) {
+  try {
+    const handle = await idbGet('backupFolderHandle');
+    if (handle) {
+      let perm = await handle.queryPermission({ mode: 'readwrite' });
+      if (perm === 'prompt') perm = await handle.requestPermission({ mode: 'readwrite' });
+      if (perm === 'granted') {
+        const fileHandle = await handle.getFileHandle(filename, { create: true });
+        const writable = await fileHandle.createWritable();
+        await writable.write(content);
+        await writable.close();
+        return;
+      }
+    }
+  } catch (e) {
+    console.warn('Écriture dans le dossier choisi impossible, téléchargement classique utilisé.', e);
+  }
+  triggerDownload(filename, content, mime);
+}
+
+async function chooseBackupFolder() {
+  if (!window.showDirectoryPicker) {
+    alert('Votre navigateur ne permet pas de choisir un dossier fixe. Les sauvegardes utiliseront la fenêtre de téléchargement classique.');
+    return;
+  }
+  try {
+    const handle = await window.showDirectoryPicker();
+    await idbSet('backupFolderHandle', handle);
+    document.getElementById('backup-folder-label').textContent = handle.name;
+  } catch (e) { /* annulé par l'utilisateur */ }
+}
+
+async function performBackup() {
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const format = localStorage.getItem('backupFormat') || 'csv';
+
+  if (format === 'json') {
+    const payload = JSON.stringify({
+      contacts, statut_historique: statutHistorique, adhesions, suivi_historique: suiviHistorique,
+    }, null, 2);
+    await writeFile(`sauvegarde-coup-de-coeur-${dateStr}.json`, payload, 'application/json');
+  } else {
+    await writeFile(`contacts-${dateStr}.csv`, toCSV(contacts), 'text/csv');
+    await writeFile(`statut_historique-${dateStr}.csv`, toCSV(statutHistorique), 'text/csv');
+    await writeFile(`adhesions-${dateStr}.csv`, toCSV(adhesions), 'text/csv');
+    await writeFile(`suivi_historique-${dateStr}.csv`, toCSV(suiviHistorique), 'text/csv');
+  }
+
+  const now = new Date();
+  localStorage.setItem('lastBackupDate', now.toISOString());
+  const reminderDays = Number(localStorage.getItem('backupReminderDays') || 7);
+  const next = new Date(now);
+  next.setDate(next.getDate() + reminderDays);
+  localStorage.setItem('nextReminderDate', next.toISOString());
+  localStorage.removeItem('snoozeUntil');
+
+  updateBackupBadge();
+  closeBackupModal();
+  alert('Sauvegarde effectuée.');
+}
+
+function snoozeBackup() {
+  const snoozeDays = Number(localStorage.getItem('backupSnoozeDays') || 1);
+  const next = new Date();
+  next.setDate(next.getDate() + snoozeDays);
+  localStorage.setItem('snoozeUntil', next.toISOString());
+  updateBackupBadge();
+  closeBackupModal();
+}
+
+function isBackupDue() {
+  const snoozeUntil = localStorage.getItem('snoozeUntil');
+  const nextReminder = localStorage.getItem('nextReminderDate');
+  const dueDate = snoozeUntil ? new Date(snoozeUntil) : (nextReminder ? new Date(nextReminder) : null);
+  if (!dueDate) return false; // pas de sauvegarde configurée/faite pour l'instant : pas de rappel intempestif
+  return new Date() >= dueDate;
+}
+
+function updateBackupBadge() {
+  document.getElementById('backup-badge-dot').classList.toggle('hidden', !isBackupDue());
+}
+
+function checkBackupReminder() {
+  // Première utilisation : on amorce le cycle sans notifier tout de suite.
+  if (!localStorage.getItem('nextReminderDate') && !localStorage.getItem('lastBackupDate')) {
+    const reminderDays = Number(localStorage.getItem('backupReminderDays') || 7);
+    const next = new Date();
+    next.setDate(next.getDate() + reminderDays);
+    localStorage.setItem('nextReminderDate', next.toISOString());
+    return;
+  }
+  updateBackupBadge();
+  if (isBackupDue()) openBackupModal();
+}
+
+function openBackupModal() {
+  const last = localStorage.getItem('lastBackupDate');
+  const lastEl = document.getElementById('backup-last-info');
+  if (last) {
+    const days = Math.floor((new Date() - new Date(last)) / 86400000);
+    lastEl.textContent = days === 0 ? "Dernière sauvegarde : aujourd'hui." : `Dernière sauvegarde : il y a ${days} jour${days > 1 ? 's' : ''}.`;
+  } else {
+    lastEl.textContent = "Aucune sauvegarde n'a encore été faite.";
+  }
+  const reminderDays = localStorage.getItem('backupReminderDays') || 7;
+  document.getElementById('backup-reminder-info').textContent = `Rappel configuré tous les ${reminderDays} jour${reminderDays > 1 ? 's' : ''}.`;
+  resetModalPosition('modal-backup');
+  document.getElementById('modal-backup').classList.remove('hidden');
+}
+function closeBackupModal() {
+  document.getElementById('modal-backup').classList.add('hidden');
+}
+
+function selectFormat(fmt) {
+  document.getElementById('format-csv').classList.toggle('format-active', fmt === 'csv');
+  document.getElementById('format-json').classList.toggle('format-active', fmt === 'json');
+  document.getElementById('modal-backup-settings').dataset.selectedFormat = fmt;
+}
+
+async function openBackupSettings() {
+  document.getElementById('settings-reminder-days').value = localStorage.getItem('backupReminderDays') || 7;
+  document.getElementById('settings-snooze-days').value = localStorage.getItem('backupSnoozeDays') || 1;
+  const format = localStorage.getItem('backupFormat') || 'csv';
+  selectFormat(format);
+
+  try {
+    const handle = await idbGet('backupFolderHandle');
+    document.getElementById('backup-folder-label').textContent = handle ? handle.name : 'Aucun dossier choisi';
+  } catch (e) {
+    document.getElementById('backup-folder-label').textContent = 'Aucun dossier choisi';
+  }
+
+  closeBackupModal();
+  resetModalPosition('modal-backup-settings');
+  document.getElementById('modal-backup-settings').classList.remove('hidden');
+}
+function closeBackupSettings() {
+  document.getElementById('modal-backup-settings').classList.add('hidden');
+}
+
+function saveBackupSettings() {
+  const reminderDays = Math.max(1, Number(document.getElementById('settings-reminder-days').value) || 7);
+  const snoozeDays = Math.max(1, Number(document.getElementById('settings-snooze-days').value) || 1);
+  const format = document.getElementById('modal-backup-settings').dataset.selectedFormat || localStorage.getItem('backupFormat') || 'csv';
+
+  localStorage.setItem('backupReminderDays', reminderDays);
+  localStorage.setItem('backupSnoozeDays', snoozeDays);
+  localStorage.setItem('backupFormat', format);
+
+  const last = localStorage.getItem('lastBackupDate');
+  const base = last ? new Date(last) : new Date();
+  const next = new Date(base);
+  next.setDate(next.getDate() + reminderDays);
+  localStorage.setItem('nextReminderDate', next.toISOString());
+  localStorage.removeItem('snoozeUntil');
+
+  updateBackupBadge();
+  closeBackupSettings();
 }
