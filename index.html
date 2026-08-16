@@ -391,9 +391,21 @@
       <div class="modal-title"><span style="font-weight:600;">Paramètres de sauvegarde</span></div>
       <button class="icon-btn" onclick="closeBackupSettings()">✕</button>
     </div>
-    <div class="form-grid grid-2">
-      <div class="field"><label>Me rappeler tous les (jours)</label><input type="number" id="settings-reminder-days" min="1" value="7"></div>
-      <div class="field"><label>Si "Plus tard", relancer après (jours)</label><input type="number" id="settings-snooze-days" min="1" value="1"></div>
+    <div class="field" style="margin-bottom:14px;">
+      <label>Me rappeler de sauvegarder tous les</label>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="number" id="settings-reminder-days" min="1" value="7" style="width:70px;flex:none;">
+        <div style="border:0.5px solid var(--border);border-radius:var(--radius);padding:8px 12px;font-size:12.5px;color:var(--ink);flex:1;">jours</div>
+      </div>
+    </div>
+    <div style="background:var(--bg);border-radius:var(--radius);padding:12px;margin-bottom:16px;">
+      <div class="field" style="margin-bottom:0;">
+        <label>Si la sauvegarde n'est pas faite au moment du rappel ("Plus tard"), relancer après</label>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="number" id="settings-snooze-days" min="1" value="1" style="width:70px;flex:none;background:#fff;">
+          <div style="border:0.5px solid var(--border);border-radius:var(--radius);padding:8px 12px;font-size:12.5px;color:var(--ink);flex:1;background:#fff;">jour(s)</div>
+        </div>
+      </div>
     </div>
     <div class="field" style="margin-bottom:12px;">
       <label>Format d'export</label>
