@@ -1125,14 +1125,15 @@ async function chooseBackupFolder() {
 
 async function performBackup() {
   const dateStr = new Date().toISOString().slice(0, 10);
-  const format = localStorage.getItem('backupFormat') || 'csv';
+  const formats = getSavedFormats();
 
-  if (format === 'json') {
+  if (formats.includes('json')) {
     const payload = JSON.stringify({
       contacts, statut_historique: statutHistorique, adhesions, suivi_historique: suiviHistorique,
     }, null, 2);
     await writeFile(`sauvegarde-coup-de-coeur-${dateStr}.json`, payload, 'application/json');
-  } else {
+  }
+  if (formats.includes('csv')) {
     await writeFile(`contacts-${dateStr}.csv`, toCSV(contacts), 'text/csv');
     await writeFile(`statut_historique-${dateStr}.csv`, toCSV(statutHistorique), 'text/csv');
     await writeFile(`adhesions-${dateStr}.csv`, toCSV(adhesions), 'text/csv');
@@ -1204,17 +1205,40 @@ function closeBackupModal() {
   document.getElementById('modal-backup').classList.add('hidden');
 }
 
-function selectFormat(fmt) {
-  document.getElementById('format-csv').classList.toggle('format-active', fmt === 'csv');
-  document.getElementById('format-json').classList.toggle('format-active', fmt === 'json');
-  document.getElementById('modal-backup-settings').dataset.selectedFormat = fmt;
+function toggleFormat(fmt) {
+  const btn = document.getElementById(`format-${fmt}`);
+  const other = fmt === 'csv' ? 'json' : 'csv';
+  const otherActive = document.getElementById(`format-${other}`).classList.contains('format-active');
+  const active = btn.classList.contains('format-active');
+  if (active && !otherActive) return; // toujours garder au moins un format sélectionné
+  btn.classList.toggle('format-active');
+}
+
+function getSelectedFormats() {
+  const formats = [];
+  if (document.getElementById('format-csv').classList.contains('format-active')) formats.push('csv');
+  if (document.getElementById('format-json').classList.contains('format-active')) formats.push('json');
+  return formats;
+}
+
+function setActiveFormats(formats) {
+  document.getElementById('format-csv').classList.toggle('format-active', formats.includes('csv'));
+  document.getElementById('format-json').classList.toggle('format-active', formats.includes('json'));
+}
+
+function getSavedFormats() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('backupFormats'));
+    if (Array.isArray(saved) && saved.length > 0) return saved;
+  } catch (e) { /* ancien format éventuel, on retombe sur le défaut */ }
+  return ['csv'];
 }
 
 async function openBackupSettings() {
   document.getElementById('settings-reminder-days').value = localStorage.getItem('backupReminderDays') || 7;
   document.getElementById('settings-snooze-days').value = localStorage.getItem('backupSnoozeDays') || 1;
-  const format = localStorage.getItem('backupFormat') || 'csv';
-  selectFormat(format);
+  const formats = getSavedFormats();
+  setActiveFormats(formats);
 
   try {
     const handle = await idbGet('backupFolderHandle');
@@ -1234,11 +1258,11 @@ function closeBackupSettings() {
 function saveBackupSettings() {
   const reminderDays = Math.max(1, Number(document.getElementById('settings-reminder-days').value) || 7);
   const snoozeDays = Math.max(1, Number(document.getElementById('settings-snooze-days').value) || 1);
-  const format = document.getElementById('modal-backup-settings').dataset.selectedFormat || localStorage.getItem('backupFormat') || 'csv';
+  const formats = getSelectedFormats();
 
   localStorage.setItem('backupReminderDays', reminderDays);
   localStorage.setItem('backupSnoozeDays', snoozeDays);
-  localStorage.setItem('backupFormat', format);
+  localStorage.setItem('backupFormats', JSON.stringify(formats));
 
   const last = localStorage.getItem('lastBackupDate');
   const base = last ? new Date(last) : new Date();
