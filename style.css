@@ -144,6 +144,22 @@ button { font-family: inherit; }
 }
 .period-shortcuts span:hover { border-color: var(--teal); color: var(--teal); }
 
+.backup-icon-btn {
+  position: relative; border: 0.5px solid rgba(255,255,255,0.25); background: transparent;
+  color: rgba(255,255,255,0.85); width: 30px; height: 30px; border-radius: var(--radius);
+  cursor: pointer; font-size: 14px;
+}
+.backup-icon-btn:hover { border-color: rgba(255,255,255,0.5); }
+.backup-badge-dot {
+  position: absolute; top: -3px; right: -3px; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--accent); border: 1.5px solid var(--dark);
+}
+.format-choice {
+  flex: 1; border: 0.5px solid var(--border); border-radius: var(--radius); padding: 9px;
+  text-align: center; font-size: 12.5px; color: var(--ink-soft); cursor: pointer;
+}
+.format-choice.format-active { border: 1.5px solid var(--accent); background: var(--accent-bg); color: var(--accent-dark); font-weight: 500; }
+
 .stat-card-clickable { cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s; }
 .stat-card-clickable:hover { border-color: rgba(0,0,0,0.12); }
 .stat-card-clickable.active-filter { border-color: var(--dark); }
