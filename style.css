@@ -147,7 +147,7 @@ button { font-family: inherit; }
 .backup-icon-btn {
   position: relative; border: 0.5px solid rgba(255,255,255,0.25); background: transparent;
   color: rgba(255,255,255,0.85); width: 30px; height: 30px; border-radius: var(--radius);
-  cursor: pointer; font-size: 14px;
+  cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center;
 }
 .backup-icon-btn:hover { border-color: rgba(255,255,255,0.5); }
 .backup-badge-dot {
