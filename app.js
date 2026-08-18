@@ -675,10 +675,6 @@ function closeContactForm() {
 async function saveContactForm() {
   const nom = document.getElementById('f-nom').value.trim();
   const prenom = document.getElementById('f-prenom').value.trim();
-  if (!nom || !prenom) {
-    alert('Le nom et le prénom sont obligatoires.');
-    return;
-  }
 
   const dateVal = document.getElementById('f-date').value;
   const payload = {
@@ -809,6 +805,22 @@ function renderDetailEditFields(c) {
       <div class="field"><label>Adresse</label><input id="e-adresse" value="${escapeHtml(c.adresse || '')}"></div>
       <div class="field"><label>Dept / CP</label><input id="e-deptcp" value="${escapeHtml(c.dept_cp || '')}"></div>
     </div>
+    <div class="form-grid grid-2">
+      <div class="field">
+        <label>Connu par</label>
+        <select id="e-connu-par">
+          ${['Recherche Google', 'Pub Google', 'Pub Facebook', 'Journal', 'Radio', 'Recommandation', 'Autre']
+            .map(o => `<option ${c.connu_par === o ? 'selected' : ''}>${o}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field">
+        <label>Type de contact</label>
+        <select id="e-type-contact">
+          ${['Appel découverte', 'Appel entrant', 'Mail', 'Whatsapp', 'SMS', 'Facebook', 'Autre']
+            .map(o => `<option ${c.type_contact === o ? 'selected' : ''}>${o}</option>`).join('')}
+        </select>
+      </div>
+    </div>
     <div class="field" style="margin-bottom:12px;">
       <label>Commentaire</label>
       <textarea id="e-commentaire">${escapeHtml(c.commentaire || '')}</textarea>
@@ -845,6 +857,8 @@ async function saveEditedFields() {
     ville: document.getElementById('e-ville').value.trim() || null,
     adresse: document.getElementById('e-adresse').value.trim() || null,
     dept_cp: document.getElementById('e-deptcp').value.trim() || null,
+    connu_par: document.getElementById('e-connu-par').value,
+    type_contact: document.getElementById('e-type-contact').value,
     commentaire: document.getElementById('e-commentaire').value.trim() || null,
   };
   const { error } = await supabaseClient.from('contacts').update(payload).eq('id', c.id);
