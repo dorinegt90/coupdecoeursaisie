@@ -1054,6 +1054,40 @@ async function deleteCurrentContact() {
 }
 
 // ---------------------------------------------------------
+// Export vers Brevo
+// ---------------------------------------------------------
+function formatPhoneForBrevo(tel) {
+  if (!tel) return '';
+  let digits = tel.replace(/[^\d+]/g, '');
+  if (digits.startsWith('+')) return digits.slice(1);
+  if (digits.startsWith('0')) return '33' + digits.slice(1);
+  return digits;
+}
+
+function brevoCsvRow(fields) {
+  return fields.map(f => `"${String(f == null ? '' : f).replace(/"/g, '""')}"`).join(',');
+}
+
+function exportBrevoCSV() {
+  const eligible = contacts.filter(c => c.email && c.email.trim());
+  if (eligible.length === 0) {
+    alert("Aucun contact avec une adresse email à exporter.");
+    return;
+  }
+
+  const header = ['EMAIL', 'FIRSTNAME', 'LASTNAME', 'SMS', 'LANDLINE_NUMBER', 'WHATSAPP', 'INTERESTS'];
+  const rows = [brevoCsvRow(header)];
+
+  eligible.forEach(c => {
+    const phone = formatPhoneForBrevo(c.telephone);
+    rows.push(brevoCsvRow([c.email.trim(), c.prenom || '', c.nom || '', phone, phone, phone, '[]']));
+  });
+
+  const dateStr = new Date().toISOString().slice(0, 10);
+  triggerDownload(`export-brevo-coup-de-coeur-${dateStr}.csv`, rows.join('\n'), 'text/csv');
+}
+
+// ---------------------------------------------------------
 // Sauvegarde : export, dossier persistant, rappel, snooze
 // ---------------------------------------------------------
 function idbOpen() {
