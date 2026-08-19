@@ -160,6 +160,12 @@ button { font-family: inherit; }
 }
 .format-choice.format-active { border: 1.5px solid var(--accent); background: var(--accent-bg); color: var(--accent-dark); font-weight: 500; }
 
+.row-action-btn {
+  border: 0.5px solid var(--teal); background: #fff; color: var(--teal);
+  font-size: 10.5px; padding: 4px 10px; border-radius: 20px; cursor: pointer; font-family: inherit;
+}
+.row-action-btn:hover { background: var(--teal); color: #fff; }
+
 .stat-card-clickable { cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s; }
 .stat-card-clickable:hover { border-color: rgba(0,0,0,0.12); }
 .stat-card-clickable.active-filter { border-color: var(--dark); }
