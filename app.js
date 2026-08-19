@@ -19,7 +19,7 @@ const FILTER_LABELS = {
   signatures: 'Signatures', ca: "Chiffre d'affaires",
 };
 
-let contactsSort = { field: 'created_at', dir: 'desc' };
+let contactsSort = { field: 'date_maj', dir: 'desc' };
 let adherentsSort = { field: 'date_maj', dir: 'desc' };
 
 const STATUTS = ['Contact entrant', 'Appel découverte programmé', 'Prospect', 'Adhérent', 'Non qualifié'];
@@ -240,7 +240,7 @@ function formatDateFR(dateStr, withWeekday) {
   const d = new Date(dateStr);
   const opts = withWeekday
     ? { weekday: 'short', day: 'numeric', month: 'short' }
-    : { day: '2-digit', month: '2-digit' };
+    : { day: '2-digit', month: '2-digit', year: '2-digit' };
   return d.toLocaleDateString('fr-FR', opts);
 }
 function formatDateTimeFR(dateStr) {
@@ -538,6 +538,7 @@ function buildContactRows() {
       email: c.email, telephone: c.telephone, adresse: c.adresse, dept_cp: c.dept_cp, ville: c.ville,
       connu_par: c.connu_par, type_contact: c.type_contact, commentaire: getLatestComment(c.id),
       statut: c.statut_actuel, formule: adh ? adh.type_formule : null,
+      date_maj: getLastActivityDate(c.id),
     };
   });
 }
@@ -560,7 +561,7 @@ function renderContactsTable() {
 
   const tbody = document.getElementById('contacts-table-body');
   if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="12" class="empty-state">Aucun contact ne correspond à cette recherche</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="14" class="empty-state">Aucun contact ne correspond à cette recherche</td></tr>`;
   } else {
     tbody.innerHTML = rows.map(r => `
       <tr onclick="openContactDetail('${r.id}')">
@@ -576,6 +577,8 @@ function renderContactsTable() {
         <td class="cell-ellipsis cell-muted">${escapeHtml(r.commentaire || '—')}</td>
         <td><span class="badge ${badgeClass(r.statut)}">${r.statut}</span></td>
         <td>${r.formule ? escapeHtml(r.formule) : '<span class="cell-muted">—</span>'}</td>
+        <td class="cell-muted">${formatDateTimeFR(r.date_maj)}</td>
+        <td><button class="row-action-btn" onclick="event.stopPropagation(); exportBrevoSingle('${r.id}')" title="Exporter ce contact vers Brevo">Brevo</button></td>
       </tr>`
     ).join('');
   }
@@ -1068,6 +1071,24 @@ function brevoCsvRow(fields) {
   return fields.map(f => `"${String(f == null ? '' : f).replace(/"/g, '""')}"`).join(',');
 }
 
+function exportBrevoSingle(id) {
+  const c = contacts.find(x => x.id === id);
+  if (!c) return;
+  if (!c.email || !c.email.trim()) {
+    alert("Ce contact n'a pas d'adresse email, impossible de l'exporter vers Brevo.");
+    return;
+  }
+  const header = ['EMAIL', 'FIRSTNAME', 'LASTNAME', 'SMS', 'LANDLINE_NUMBER', 'WHATSAPP', 'INTERESTS'];
+  const phone = formatPhoneForBrevo(c.telephone);
+  const rows = [
+    brevoCsvRow(header),
+    brevoCsvRow([c.email.trim(), c.prenom || '', c.nom || '', phone, phone, phone, '[]']),
+  ];
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const safeName = `${c.prenom || ''}-${c.nom || ''}`.trim().replace(/\s+/g, '-') || 'contact';
+  triggerDownload(`brevo-${safeName}-${dateStr}.csv`, rows.join('\n'), 'text/csv');
+}
+
 function exportBrevoCSV() {
   const eligible = contacts.filter(c => c.email && c.email.trim());
   if (eligible.length === 0) {
@@ -1139,14 +1160,15 @@ function triggerDownload(filename, content, mime) {
   URL.revokeObjectURL(url);
 }
 
-async function writeFile(filename, content, mime) {
+async function writeFile(filename, content, mime, dateStr) {
   try {
     const handle = await idbGet('backupFolderHandle');
     if (handle) {
       let perm = await handle.queryPermission({ mode: 'readwrite' });
       if (perm === 'prompt') perm = await handle.requestPermission({ mode: 'readwrite' });
       if (perm === 'granted') {
-        const fileHandle = await handle.getFileHandle(filename, { create: true });
+        const targetDir = dateStr ? await handle.getDirectoryHandle(dateStr, { create: true }) : handle;
+        const fileHandle = await targetDir.getFileHandle(filename, { create: true });
         const writable = await fileHandle.createWritable();
         await writable.write(content);
         await writable.close();
@@ -1179,13 +1201,13 @@ async function performBackup() {
     const payload = JSON.stringify({
       contacts, statut_historique: statutHistorique, adhesions, suivi_historique: suiviHistorique,
     }, null, 2);
-    await writeFile(`sauvegarde-coup-de-coeur-${dateStr}.json`, payload, 'application/json');
+    await writeFile(`sauvegarde-coup-de-coeur-${dateStr}.json`, payload, 'application/json', dateStr);
   }
   if (formats.includes('csv')) {
-    await writeFile(`contacts-${dateStr}.csv`, toCSV(contacts), 'text/csv');
-    await writeFile(`statut_historique-${dateStr}.csv`, toCSV(statutHistorique), 'text/csv');
-    await writeFile(`adhesions-${dateStr}.csv`, toCSV(adhesions), 'text/csv');
-    await writeFile(`suivi_historique-${dateStr}.csv`, toCSV(suiviHistorique), 'text/csv');
+    await writeFile(`contacts-${dateStr}.csv`, toCSV(contacts), 'text/csv', dateStr);
+    await writeFile(`statut_historique-${dateStr}.csv`, toCSV(statutHistorique), 'text/csv', dateStr);
+    await writeFile(`adhesions-${dateStr}.csv`, toCSV(adhesions), 'text/csv', dateStr);
+    await writeFile(`suivi_historique-${dateStr}.csv`, toCSV(suiviHistorique), 'text/csv', dateStr);
   }
 
   const now = new Date();
