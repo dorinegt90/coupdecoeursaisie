@@ -200,6 +200,7 @@
             <th onclick="sortTable('adherents','prenom')">Prénom<span class="sort-arrow" data-field="prenom"></span></th>
             <th onclick="sortTable('adherents','nom')">Nom<span class="sort-arrow" data-field="nom"></span></th>
             <th onclick="sortTable('adherents','formule')">Formule<span class="sort-arrow" data-field="formule"></span></th>
+            <th onclick="sortTable('adherents','date_debut_contrat')">Début contrat<span class="sort-arrow" data-field="date_debut_contrat"></span></th>
             <th onclick="sortTable('adherents','commentaire')">Dernier commentaire<span class="sort-arrow" data-field="commentaire"></span></th>
             <th onclick="sortTable('adherents','date_maj')">Dernière mise à jour<span class="sort-arrow" data-field="date_maj"></span></th>
           </tr>
@@ -327,6 +328,10 @@
           </select>
         </div>
         <div class="field"><label>En combien de fois</label><input type="number" id="detail-nb-fois" min="1" value="1"></div>
+      </div>
+      <div class="field">
+        <label>Début du contrat</label>
+        <input type="date" id="detail-date-debut">
       </div>
       </div>
 
