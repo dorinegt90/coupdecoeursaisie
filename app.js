@@ -179,7 +179,7 @@ function getLatestComment(contactId) {
 
 function getLastActivityDate(contactId) {
   const c = contacts.find(x => x.id === contactId);
-  let latest = c ? new Date(c.created_at) : new Date(0);
+  let latest = c ? new Date(c.updated_at || c.created_at) : new Date(0);
   const h = getHistoryFor(contactId);
   if (h.length > 0) { const d = new Date(h[0].date_changement); if (d > latest) latest = d; }
   const s = getSuiviFor(contactId);
@@ -578,7 +578,7 @@ function renderContactsTable() {
         <td><span class="badge ${badgeClass(r.statut)}">${r.statut}</span></td>
         <td>${r.formule ? escapeHtml(r.formule) : '<span class="cell-muted">—</span>'}</td>
         <td class="cell-muted">${formatDateTimeFR(r.date_maj)}</td>
-        <td><button class="row-action-btn" onclick="event.stopPropagation(); exportBrevoSingle('${r.id}')" title="Exporter ce contact vers Brevo">Brevo</button></td>
+        <td><button class="row-action-btn" onclick="event.stopPropagation(); sendToBrevo('${r.id}', this)" title="Envoyer directement vers Brevo">Envoyer</button></td>
       </tr>`
     ).join('');
   }
@@ -601,6 +601,7 @@ function buildAdherentRows() {
         id: c.id, statut: c.statut_actuel, prenom: c.prenom, nom: c.nom,
         commentaire: getLatestComment(c.id), date_maj: getLastActivityDate(c.id),
         formule: adh ? adh.type_formule : null,
+        date_debut_contrat: adh ? adh.date_debut_contrat : null,
       };
     });
 }
@@ -637,7 +638,7 @@ function renderAdherentsTable() {
 
   const tbody = document.getElementById('adherents-table-body');
   if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Aucun adhérent ne correspond</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="empty-state">Aucun adhérent ne correspond</td></tr>`;
   } else {
     tbody.innerHTML = rows.map(r => `
       <tr onclick="openAdherentDetail('${r.id}')">
@@ -645,6 +646,7 @@ function renderAdherentsTable() {
         <td>${escapeHtml(r.prenom)}</td>
         <td>${escapeHtml(r.nom)}</td>
         <td>${r.formule ? escapeHtml(r.formule) : '<span class="cell-muted">—</span>'}</td>
+        <td class="cell-muted">${r.date_debut_contrat ? formatDateFR(r.date_debut_contrat) : '—'}</td>
         <td class="cell-ellipsis cell-muted">${escapeHtml(r.commentaire || '—')}</td>
         <td>${formatDateTimeFR(r.date_maj)}</td>
       </tr>`
@@ -736,10 +738,12 @@ function openContactDetail(id) {
     document.getElementById('detail-montant').value = adh.montant || '';
     document.getElementById('detail-mode-reglement').value = adh.mode_reglement || 'Carte bancaire';
     document.getElementById('detail-nb-fois').value = adh.nombre_fois || 1;
+    document.getElementById('detail-date-debut').value = adh.date_debut_contrat || adh.date_adhesion || '';
   } else {
     document.getElementById('detail-formule').value = '';
     document.getElementById('detail-montant').value = '';
     document.getElementById('detail-nb-fois').value = 1;
+    document.getElementById('detail-date-debut').value = new Date().toISOString().slice(0, 10);
   }
 
   renderHistory(c.id);
@@ -896,6 +900,7 @@ async function saveStatusChange() {
       mode_reglement: document.getElementById('detail-mode-reglement').value,
       nombre_fois: Number(document.getElementById('detail-nb-fois').value) || 1,
       date_adhesion: new Date().toISOString().slice(0, 10),
+      date_debut_contrat: document.getElementById('detail-date-debut').value || null,
     };
     const { error: adhError } = await supabaseClient.from('adhesions').upsert(adhPayload, { onConflict: 'contact_id' });
     if (adhError) { alert("Erreur à l'enregistrement de l'adhésion : " + adhError.message); return; }
@@ -1069,6 +1074,44 @@ function formatPhoneForBrevo(tel) {
 
 function brevoCsvRow(fields) {
   return fields.map(f => `"${String(f == null ? '' : f).replace(/"/g, '""')}"`).join(',');
+}
+
+async function sendToBrevo(id, btnEl) {
+  const c = contacts.find(x => x.id === id);
+  if (!c) return;
+  if (!c.email || !c.email.trim()) {
+    alert("Ce contact n'a pas d'adresse email, impossible de l'envoyer à Brevo.");
+    return;
+  }
+
+  const original = btnEl ? btnEl.textContent : null;
+  if (btnEl) { btnEl.textContent = '...'; btnEl.disabled = true; }
+
+  try {
+    const { data: sessionData } = await supabaseClient.auth.getSession();
+    const token = sessionData.session ? sessionData.session.access_token : null;
+    if (!token) { alert('Session expirée, reconnectez-vous.'); return; }
+
+    const phone = formatPhoneForBrevo(c.telephone);
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/brevo-sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({
+        email: c.email.trim(), firstname: c.prenom || '', lastname: c.nom || '',
+        sms: phone, landline: phone, whatsapp: phone,
+      }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert("Erreur lors de l'envoi vers Brevo : " + (data.error || res.status));
+      return;
+    }
+    if (btnEl) { btnEl.textContent = '✓'; setTimeout(() => { btnEl.textContent = original; btnEl.disabled = false; }, 1500); }
+  } catch (e) {
+    alert("Impossible de contacter Brevo : " + e.message);
+  } finally {
+    if (btnEl && btnEl.disabled && btnEl.textContent === '...') { btnEl.textContent = original; btnEl.disabled = false; }
+  }
 }
 
 function exportBrevoSingle(id) {
