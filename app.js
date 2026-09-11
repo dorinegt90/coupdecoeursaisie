@@ -193,6 +193,96 @@ function autoGrow(el) {
 }
 
 // ---------------------------------------------------------
+// Éditeur de texte riche (gras / italique / couleur)
+// ---------------------------------------------------------
+function richExec(id, cmd) {
+  document.getElementById(id).focus();
+  document.execCommand(cmd, false, null);
+}
+function richExecColor(id, color) {
+  document.getElementById(id).focus();
+  document.execCommand('foreColor', false, color);
+}
+function getRichHTML(id) {
+  const el = document.getElementById(id);
+  if (!el) return '';
+  return el.innerHTML.replace(/<script[\s\S]*?<\/script>/gi, '').trim();
+}
+function setRichHTML(id, html) {
+  const el = document.getElementById(id);
+  if (el) el.innerHTML = html || '';
+}
+function stripHTML(html) {
+  if (!html) return '';
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+}
+
+// ---------------------------------------------------------
+// Sélecteur de colonnes (onglet Contacts)
+// ---------------------------------------------------------
+const CONTACT_COLUMNS = [
+  { key: 'date', label: 'Date' },
+  { key: 'prenom', label: 'Prénom' },
+  { key: 'nom', label: 'Nom' },
+  { key: 'age', label: 'Âge' },
+  { key: 'email', label: 'Email' },
+  { key: 'telephone', label: 'Téléphone' },
+  { key: 'deptcp', label: 'Dept / CP' },
+  { key: 'ville', label: 'Ville' },
+  { key: 'typecontact', label: 'Type de contact' },
+  { key: 'commentaire', label: 'Commentaire' },
+  { key: 'statut', label: 'Statut' },
+  { key: 'formule', label: 'Formule' },
+  { key: 'datemaj', label: 'Dernière modification' },
+  { key: 'brevo', label: 'Brevo' },
+];
+
+function getVisibleColumns() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('contactsVisibleColumns'));
+    if (Array.isArray(saved) && saved.length > 0) return saved;
+  } catch (e) { /* ignore */ }
+  return CONTACT_COLUMNS.map(c => c.key);
+}
+
+function toggleColumnPicker() {
+  const panel = document.getElementById('column-picker-panel');
+  if (panel.classList.contains('hidden')) {
+    const visible = getVisibleColumns();
+    panel.innerHTML = CONTACT_COLUMNS.map(c => `
+      <label class="column-picker-item">
+        <input type="checkbox" value="${c.key}" ${visible.includes(c.key) ? 'checked' : ''} onchange="onColumnToggle()">
+        ${c.label}
+      </label>
+    `).join('');
+  }
+  panel.classList.toggle('hidden');
+}
+
+function onColumnToggle() {
+  const checked = Array.from(document.querySelectorAll('#column-picker-panel input:checked')).map(cb => cb.value);
+  localStorage.setItem('contactsVisibleColumns', JSON.stringify(checked));
+  applyColumnVisibility();
+}
+
+function applyColumnVisibility() {
+  const visible = getVisibleColumns();
+  CONTACT_COLUMNS.forEach(c => {
+    document.querySelectorAll(`#contacts-table [data-col="${c.key}"]`).forEach(el => {
+      el.classList.toggle('hidden', !visible.includes(c.key));
+    });
+  });
+}
+
+document.addEventListener('click', (e) => {
+  const wrap = document.querySelector('.column-picker-wrap');
+  const panel = document.getElementById('column-picker-panel');
+  if (wrap && panel && !wrap.contains(e.target)) panel.classList.add('hidden');
+});
+
+// ---------------------------------------------------------
 // Navigation
 // ---------------------------------------------------------
 function switchTab(tab) {
@@ -522,7 +612,7 @@ function matchesSearch(row, search) {
   if (!search) return true;
   const hay = [
     row.prenom, row.nom, row.email, row.telephone, row.adresse,
-    row.dept_cp, row.ville, row.connu_par, row.type_contact, row.commentaire, row.statut,
+    row.dept_cp, row.ville, row.connu_par, row.type_contact, stripHTML(row.commentaire), row.statut,
   ].join(' ').toLowerCase();
   return hay.includes(search);
 }
@@ -538,7 +628,7 @@ function buildContactRows() {
       email: c.email, telephone: c.telephone, adresse: c.adresse, dept_cp: c.dept_cp, ville: c.ville,
       connu_par: c.connu_par, type_contact: c.type_contact, commentaire: getLatestComment(c.id),
       statut: c.statut_actuel, formule: adh ? adh.type_formule : null,
-      date_maj: getLastActivityDate(c.id),
+      date_maj: getLastActivityDate(c.id), brevo_synced_at: c.brevo_synced_at,
     };
   });
 }
@@ -563,30 +653,33 @@ function renderContactsTable() {
   if (rows.length === 0) {
     tbody.innerHTML = `<tr><td colspan="14" class="empty-state">Aucun contact ne correspond à cette recherche</td></tr>`;
   } else {
-    tbody.innerHTML = rows.map(r => `
+    tbody.innerHTML = rows.map(r => {
+      const brevoSent = !!r.brevo_synced_at;
+      return `
       <tr onclick="openContactDetail('${r.id}')">
-        <td>${formatDateFR(r.created_at)}</td>
-        <td>${escapeHtml(r.prenom)}</td>
-        <td>${escapeHtml(r.nom)}</td>
-        <td>${r.age || '—'}</td>
-        <td class="cell-muted">${escapeHtml(r.email || '—')}</td>
-        <td>${escapeHtml(r.telephone || '—')}</td>
-        <td>${escapeHtml(r.dept_cp || '—')}</td>
-        <td>${escapeHtml(r.ville || '—')}</td>
-        <td>${escapeHtml(r.type_contact || '—')}</td>
-        <td class="cell-ellipsis cell-muted">${escapeHtml(r.commentaire || '—')}</td>
-        <td><span class="badge ${badgeClass(r.statut)}">${r.statut}</span></td>
-        <td>${r.formule ? escapeHtml(r.formule) : '<span class="cell-muted">—</span>'}</td>
-        <td class="cell-muted">${formatDateTimeFR(r.date_maj)}</td>
-        <td><button class="row-action-btn" onclick="event.stopPropagation(); sendToBrevo('${r.id}', this)" title="Envoyer directement vers Brevo">Envoyer</button></td>
-      </tr>`
-    ).join('');
+        <td data-col="date">${formatDateFR(r.created_at)}</td>
+        <td data-col="prenom">${escapeHtml(r.prenom)}</td>
+        <td data-col="nom">${escapeHtml(r.nom)}</td>
+        <td data-col="age">${r.age || '—'}</td>
+        <td data-col="email" class="cell-muted">${escapeHtml(r.email || '—')}</td>
+        <td data-col="telephone">${escapeHtml(r.telephone || '—')}</td>
+        <td data-col="deptcp">${escapeHtml(r.dept_cp || '—')}</td>
+        <td data-col="ville">${escapeHtml(r.ville || '—')}</td>
+        <td data-col="typecontact">${escapeHtml(r.type_contact || '—')}</td>
+        <td data-col="commentaire" class="cell-ellipsis cell-muted">${r.commentaire || '—'}</td>
+        <td data-col="statut"><span class="badge ${badgeClass(r.statut)}">${r.statut}</span></td>
+        <td data-col="formule">${r.formule ? escapeHtml(r.formule) : '<span class="cell-muted">—</span>'}</td>
+        <td data-col="datemaj" class="cell-muted">${formatDateTimeFR(r.date_maj)}</td>
+        <td data-col="brevo"><button class="row-action-btn ${brevoSent ? 'row-action-sent' : ''}" onclick="event.stopPropagation(); sendToBrevo('${r.id}', this)" title="Envoyer directement vers Brevo">${brevoSent ? 'Envoyé' : 'Envoyer'}</button></td>
+      </tr>`;
+    }).join('');
   }
 
   document.getElementById('contacts-count').textContent =
     `${rows.length} contact${rows.length > 1 ? 's' : ''} affiché${rows.length > 1 ? 's' : ''} sur ${contacts.length}`;
 
   updateSortArrows('contacts-table', contactsSort);
+  applyColumnVisibility();
 }
 
 // ---------------------------------------------------------
@@ -622,7 +715,7 @@ function renderAdherentsTable() {
 
   let rows = buildAdherentRows().filter(r => {
     if (search) {
-      const hay = [r.prenom, r.nom, r.commentaire].join(' ').toLowerCase();
+      const hay = [r.prenom, r.nom, stripHTML(r.commentaire)].join(' ').toLowerCase();
       if (!hay.includes(search)) return false;
     }
     if (formuleFilter && r.formule !== formuleFilter) return false;
@@ -647,7 +740,7 @@ function renderAdherentsTable() {
         <td>${escapeHtml(r.nom)}</td>
         <td>${r.formule ? escapeHtml(r.formule) : '<span class="cell-muted">—</span>'}</td>
         <td class="cell-muted">${r.date_debut_contrat ? formatDateFR(r.date_debut_contrat) : '—'}</td>
-        <td class="cell-ellipsis cell-muted">${escapeHtml(r.commentaire || '—')}</td>
+        <td class="cell-ellipsis cell-muted">${r.commentaire || '—'}</td>
         <td>${formatDateTimeFR(r.date_maj)}</td>
       </tr>`
     ).join('');
@@ -666,8 +759,9 @@ function openContactForm() {
   document.getElementById('form-title').textContent = 'Nouveau contact';
   document.getElementById('form-contact-id').value = '';
   document.getElementById('f-date').value = new Date().toISOString().slice(0, 10);
-  ['f-nom', 'f-prenom', 'f-age', 'f-email', 'f-telephone', 'f-adresse', 'f-deptcp', 'f-ville', 'f-commentaire']
+  ['f-nom', 'f-prenom', 'f-age', 'f-email', 'f-telephone', 'f-adresse', 'f-deptcp', 'f-ville']
     .forEach(id => document.getElementById(id).value = '');
+  setRichHTML('f-commentaire', '');
   document.getElementById('f-connu-par').selectedIndex = 0;
   document.getElementById('f-type-contact').selectedIndex = 0;
   resetModalPosition('modal-contact-form');
@@ -693,7 +787,7 @@ async function saveContactForm() {
     ville: document.getElementById('f-ville').value.trim() || null,
     connu_par: document.getElementById('f-connu-par').value,
     type_contact: document.getElementById('f-type-contact').value,
-    commentaire: document.getElementById('f-commentaire').value.trim() || null,
+    commentaire: getRichHTML('f-commentaire') || null,
     statut_actuel: 'Contact entrant',
   };
 
@@ -724,7 +818,8 @@ function openContactDetail(id) {
   document.getElementById('detail-current-badge').textContent = c.statut_actuel;
   document.getElementById('detail-current-badge').className = 'badge ' + badgeClass(c.statut_actuel);
   document.getElementById('detail-new-status').value = c.statut_actuel;
-  document.getElementById('detail-status-note').value = '';
+  setRichHTML('detail-status-note', '');
+  setRichHTML('detail-appel-decouverte', c.appel_decouverte || '');
 
   renderDetailViewFields(c);
   document.getElementById('detail-view-fields').classList.remove('hidden');
@@ -765,6 +860,10 @@ function fieldEmail(label, value) {
   return `<div class="detail-field"><div class="label">${label}</div><div class="value" style="display:flex;align-items:center;gap:6px;"><span id="detail-email-value">${escapeHtml(value)}</span><button class="copy-btn" onclick="copyFieldText('detail-email-value', this)" title="Copier l'email">⧉</button></div></div>`;
 }
 
+function fieldHTML(label, value) {
+  return `<div class="detail-field"><div class="label">${label}</div><div class="value">${value || '—'}</div></div>`;
+}
+
 function copyFieldText(elementId, btnEl) {
   const el = document.getElementById(elementId);
   const text = (el.textContent || '').trim();
@@ -790,7 +889,7 @@ function renderDetailViewFields(c) {
     field('Ville', c.ville),
     field('Connu par', c.connu_par),
     field('Type de contact', c.type_contact),
-    field('Commentaire', getLatestComment(c.id)),
+    fieldHTML('Commentaire', getLatestComment(c.id)),
   ].join('');
 }
 
@@ -830,7 +929,12 @@ function renderDetailEditFields(c) {
     </div>
     <div class="field" style="margin-bottom:12px;">
       <label>Commentaire</label>
-      <textarea id="e-commentaire">${escapeHtml(c.commentaire || '')}</textarea>
+      <div class="rich-toolbar">
+        <button type="button" onmousedown="event.preventDefault(); richExec('e-commentaire','bold')"><b>G</b></button>
+        <button type="button" onmousedown="event.preventDefault(); richExec('e-commentaire','italic')"><i>I</i></button>
+        <input type="color" class="rich-color" onmousedown="event.stopPropagation()" onchange="richExecColor('e-commentaire', this.value)" title="Couleur du texte">
+      </div>
+      <div class="rich-editable" id="e-commentaire" contenteditable="true">${c.commentaire || ''}</div>
     </div>
     <div class="form-actions" style="margin-bottom:8px;">
       <button class="btn-secondary" onclick="toggleEditMode()">Annuler</button>
@@ -866,7 +970,7 @@ async function saveEditedFields() {
     dept_cp: document.getElementById('e-deptcp').value.trim() || null,
     connu_par: document.getElementById('e-connu-par').value,
     type_contact: document.getElementById('e-type-contact').value,
-    commentaire: document.getElementById('e-commentaire').value.trim() || null,
+    commentaire: getRichHTML('e-commentaire') || null,
   };
   const { error } = await supabaseClient.from('contacts').update(payload).eq('id', c.id);
   if (error) { alert("Erreur à la modification : " + error.message); return; }
@@ -882,10 +986,20 @@ function onDetailStatusChange() {
   document.getElementById('detail-adhesion-fields').classList.toggle('hidden', newStatus !== 'Adhérent');
 }
 
+async function saveAppelDecouverte() {
+  const c = currentDetailContact;
+  const html = getRichHTML('detail-appel-decouverte');
+  const { error } = await supabaseClient.from('contacts').update({ appel_decouverte: html || null }).eq('id', c.id);
+  if (error) { alert("Erreur à l'enregistrement : " + error.message); return; }
+  await loadAllData();
+  openContactDetail(c.id);
+}
+
 async function saveStatusChange() {
   const c = currentDetailContact;
   const newStatus = document.getElementById('detail-new-status').value;
-  const commentaire = document.getElementById('detail-status-note').value.trim() || null;
+  const commentaireHTML = getRichHTML('detail-status-note');
+  const commentaire = stripHTML(commentaireHTML).trim() ? commentaireHTML : null;
 
   if (newStatus === 'Adhérent') {
     const montant = document.getElementById('detail-montant').value;
@@ -938,7 +1052,7 @@ function renderHistory(contactId) {
     <div class="timeline-item">
       <div>
         <span class="badge ${badgeClass(h.statut)}">${h.statut}</span>
-        ${h.commentaire ? `<span style="margin-left:8px;color:var(--ink-soft);">${escapeHtml(h.commentaire)}</span>` : ''}
+        ${h.commentaire ? `<span style="margin-left:8px;color:var(--ink-soft);">${h.commentaire}</span>` : ''}
       </div>
       <span class="timeline-date">${formatDateTimeFR(h.date_changement)}</span>
     </div>
@@ -959,7 +1073,7 @@ function openAdherentDetail(id) {
   document.getElementById('adh-email').textContent = c.email || '—';
   document.getElementById('adh-age').textContent = c.age || '—';
   document.getElementById('adh-telephone').textContent = c.telephone || '—';
-  document.getElementById('adh-new-comment').value = '';
+  setRichHTML('adh-new-comment', '');
 
   renderCommentLog(id);
   resetModalPosition('modal-adherent-detail');
@@ -985,8 +1099,13 @@ function renderCommentLog(contactId) {
       return `
         <div class="suivi-entry suivi-entry-edit-row">
           <span class="suivi-entry-date">${formatDateShort(e.date_commentaire)}</span>
-          <div>
-            <textarea id="edit-suivi-${e.id}" oninput="autoGrow(this)">${escapeHtml(e.commentaire)}</textarea>
+          <div style="flex:1;">
+            <div class="rich-toolbar">
+              <button type="button" onmousedown="event.preventDefault(); richExec('edit-suivi-${e.id}','bold')"><b>G</b></button>
+              <button type="button" onmousedown="event.preventDefault(); richExec('edit-suivi-${e.id}','italic')"><i>I</i></button>
+              <input type="color" class="rich-color" onmousedown="event.stopPropagation()" onchange="richExecColor('edit-suivi-${e.id}', this.value)" title="Couleur du texte">
+            </div>
+            <div class="rich-editable" id="edit-suivi-${e.id}" contenteditable="true">${e.commentaire}</div>
             <div class="form-actions">
               <button class="btn-secondary" onclick="cancelEditSuivi()">Annuler</button>
               <button class="btn-primary" onclick="saveEditSuivi('${e.id}')">Enregistrer</button>
@@ -997,7 +1116,7 @@ function renderCommentLog(contactId) {
     return `
       <div class="suivi-entry">
         <span class="suivi-entry-date">${formatDateShort(e.date_commentaire)}</span>
-        <span class="suivi-entry-text">${escapeHtml(e.commentaire)}</span>
+        <span class="suivi-entry-text">${e.commentaire}</span>
         <span class="suivi-entry-actions">
           <button onclick="startEditSuivi('${e.id}')" title="Modifier">✎</button>
           <button onclick="deleteSuiviEntry('${e.id}')" title="Supprimer">🗑</button>
@@ -1006,10 +1125,6 @@ function renderCommentLog(contactId) {
   }).join('');
 
   el.scrollTop = el.scrollHeight;
-  if (editingSuiviId) {
-    const ta = document.getElementById(`edit-suivi-${editingSuiviId}`);
-    if (ta) autoGrow(ta);
-  }
 }
 
 function startEditSuivi(id) {
@@ -1021,10 +1136,9 @@ function cancelEditSuivi() {
   renderCommentLog(currentDetailContact.id);
 }
 async function saveEditSuivi(id) {
-  const ta = document.getElementById(`edit-suivi-${id}`);
-  const text = ta.value.trim();
-  if (!text) { alert('Le commentaire ne peut pas être vide.'); return; }
-  const { error } = await supabaseClient.from('suivi_historique').update({ commentaire: text }).eq('id', id);
+  const html = getRichHTML(`edit-suivi-${id}`);
+  if (!stripHTML(html).trim()) { alert('Le commentaire ne peut pas être vide.'); return; }
+  const { error } = await supabaseClient.from('suivi_historique').update({ commentaire: html }).eq('id', id);
   if (error) { alert("Erreur à la modification : " + error.message); return; }
   editingSuiviId = null;
   await loadAllData();
@@ -1040,11 +1154,11 @@ async function deleteSuiviEntry(id) {
 
 async function saveAdherentComment() {
   const c = currentDetailContact;
-  const text = document.getElementById('adh-new-comment').value.trim();
-  if (!text) { alert('Merci de saisir un commentaire avant d\'enregistrer.'); return; }
+  const html = getRichHTML('adh-new-comment');
+  if (!stripHTML(html).trim()) { alert('Merci de saisir un commentaire avant d\'enregistrer.'); return; }
 
   const { error } = await supabaseClient.from('suivi_historique').insert({
-    contact_id: c.id, commentaire: text,
+    contact_id: c.id, commentaire: html,
   });
   if (error) { alert("Erreur à l'enregistrement du commentaire : " + error.message); return; }
 
@@ -1106,7 +1220,17 @@ async function sendToBrevo(id, btnEl) {
       alert("Erreur lors de l'envoi vers Brevo : " + (data.error || res.status));
       return;
     }
-    if (btnEl) { btnEl.textContent = '✓'; setTimeout(() => { btnEl.textContent = original; btnEl.disabled = false; }, 1500); }
+
+    const now = new Date().toISOString();
+    const { error: updError } = await supabaseClient.from('contacts').update({ brevo_synced_at: now }).eq('id', c.id);
+    if (updError) { alert("Envoyé à Brevo, mais l'état n'a pas pu être enregistré : " + updError.message); return; }
+    c.brevo_synced_at = now;
+
+    if (btnEl) {
+      btnEl.textContent = 'Envoyé';
+      btnEl.classList.add('row-action-sent');
+      btnEl.disabled = false;
+    }
   } catch (e) {
     alert("Impossible de contacter Brevo : " + e.message);
   } finally {
