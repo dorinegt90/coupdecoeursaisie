@@ -143,6 +143,10 @@
       <div class="field"><label>Âge max</label><input type="number" id="filter-age-max" oninput="renderContactsTable()"></div>
     </div>
     <div class="filters-actions-row">
+      <div class="column-picker-wrap">
+        <button class="btn-secondary" onclick="toggleColumnPicker()">⚙ Colonnes</button>
+        <div id="column-picker-panel" class="column-picker-panel hidden"></div>
+      </div>
       <button class="btn-secondary" onclick="exportBrevoCSV()">Exporter vers Brevo</button>
       <button class="btn-secondary" onclick="resetAdvancedFilters()">Réinitialiser les filtres</button>
     </div>
@@ -151,20 +155,20 @@
       <table class="data-table contacts-wide" id="contacts-table">
         <thead>
           <tr>
-            <th onclick="sortTable('contacts','created_at')">Date<span class="sort-arrow" data-field="created_at"></span></th>
-            <th onclick="sortTable('contacts','prenom')">Prénom<span class="sort-arrow" data-field="prenom"></span></th>
-            <th onclick="sortTable('contacts','nom')">Nom<span class="sort-arrow" data-field="nom"></span></th>
-            <th onclick="sortTable('contacts','age')">Âge<span class="sort-arrow" data-field="age"></span></th>
-            <th onclick="sortTable('contacts','email')">Email<span class="sort-arrow" data-field="email"></span></th>
-            <th onclick="sortTable('contacts','telephone')">Téléphone<span class="sort-arrow" data-field="telephone"></span></th>
-            <th onclick="sortTable('contacts','dept_cp')">Dept / CP<span class="sort-arrow" data-field="dept_cp"></span></th>
-            <th onclick="sortTable('contacts','ville')">Ville<span class="sort-arrow" data-field="ville"></span></th>
-            <th onclick="sortTable('contacts','type_contact')">Type de contact<span class="sort-arrow" data-field="type_contact"></span></th>
-            <th onclick="sortTable('contacts','commentaire')">Commentaire<span class="sort-arrow" data-field="commentaire"></span></th>
-            <th onclick="sortTable('contacts','statut')">Statut<span class="sort-arrow" data-field="statut"></span></th>
-            <th onclick="sortTable('contacts','formule')">Formule<span class="sort-arrow" data-field="formule"></span></th>
-            <th onclick="sortTable('contacts','date_maj')">Dernière modification<span class="sort-arrow" data-field="date_maj"></span></th>
-            <th>Brevo</th>
+            <th data-col="date" onclick="sortTable('contacts','created_at')">Date<span class="sort-arrow" data-field="created_at"></span></th>
+            <th data-col="prenom" onclick="sortTable('contacts','prenom')">Prénom<span class="sort-arrow" data-field="prenom"></span></th>
+            <th data-col="nom" onclick="sortTable('contacts','nom')">Nom<span class="sort-arrow" data-field="nom"></span></th>
+            <th data-col="age" onclick="sortTable('contacts','age')">Âge<span class="sort-arrow" data-field="age"></span></th>
+            <th data-col="email" onclick="sortTable('contacts','email')">Email<span class="sort-arrow" data-field="email"></span></th>
+            <th data-col="telephone" onclick="sortTable('contacts','telephone')">Téléphone<span class="sort-arrow" data-field="telephone"></span></th>
+            <th data-col="deptcp" onclick="sortTable('contacts','dept_cp')">Dept / CP<span class="sort-arrow" data-field="dept_cp"></span></th>
+            <th data-col="ville" onclick="sortTable('contacts','ville')">Ville<span class="sort-arrow" data-field="ville"></span></th>
+            <th data-col="typecontact" onclick="sortTable('contacts','type_contact')">Type de contact<span class="sort-arrow" data-field="type_contact"></span></th>
+            <th data-col="commentaire" onclick="sortTable('contacts','commentaire')">Commentaire<span class="sort-arrow" data-field="commentaire"></span></th>
+            <th data-col="statut" onclick="sortTable('contacts','statut')">Statut<span class="sort-arrow" data-field="statut"></span></th>
+            <th data-col="formule" onclick="sortTable('contacts','formule')">Formule<span class="sort-arrow" data-field="formule"></span></th>
+            <th data-col="datemaj" onclick="sortTable('contacts','date_maj')">Dernière modification<span class="sort-arrow" data-field="date_maj"></span></th>
+            <th data-col="brevo">Brevo</th>
           </tr>
         </thead>
         <tbody id="contacts-table-body"></tbody>
@@ -260,7 +264,12 @@
     </div>
     <div class="field" style="margin-bottom:12px;">
       <label>Commentaire</label>
-      <textarea id="f-commentaire" placeholder="Notes libres sur ce contact..."></textarea>
+      <div class="rich-toolbar">
+        <button type="button" onmousedown="event.preventDefault(); richExec('f-commentaire','bold')"><b>G</b></button>
+        <button type="button" onmousedown="event.preventDefault(); richExec('f-commentaire','italic')"><i>I</i></button>
+        <input type="color" class="rich-color" onmousedown="event.stopPropagation()" onchange="richExecColor('f-commentaire', this.value)" title="Couleur du texte">
+      </div>
+      <div class="rich-editable" id="f-commentaire" contenteditable="true"></div>
     </div>
     <div class="form-actions">
       <button class="btn-secondary" onclick="closeContactForm()">Annuler</button>
@@ -290,6 +299,17 @@
     <div id="detail-view-fields" class="detail-grid"></div>
     <div id="detail-edit-fields" class="hidden"></div>
 
+    <div class="detail-section-title">Appel découverte</div>
+    <div class="rich-toolbar">
+      <button type="button" onmousedown="event.preventDefault(); richExec('detail-appel-decouverte','bold')"><b>G</b></button>
+      <button type="button" onmousedown="event.preventDefault(); richExec('detail-appel-decouverte','italic')"><i>I</i></button>
+      <input type="color" class="rich-color" onmousedown="event.stopPropagation()" onchange="richExecColor('detail-appel-decouverte', this.value)" title="Couleur du texte">
+    </div>
+    <div class="rich-editable" id="detail-appel-decouverte" contenteditable="true" style="min-height:90px;"></div>
+    <div class="form-actions" style="margin-bottom:8px;">
+      <button class="btn-primary" onclick="saveAppelDecouverte()">Enregistrer</button>
+    </div>
+
     <div class="detail-section-title">Statut</div>
     <div class="status-row">
       <span id="detail-current-badge" class="badge">—</span>
@@ -306,7 +326,12 @@
     </div>
     <div class="field" style="margin-bottom:8px;">
       <label>Commentaire</label>
-      <textarea id="detail-status-note" rows="3" oninput="autoGrow(this)"></textarea>
+      <div class="rich-toolbar">
+        <button type="button" onmousedown="event.preventDefault(); richExec('detail-status-note','bold')"><b>G</b></button>
+        <button type="button" onmousedown="event.preventDefault(); richExec('detail-status-note','italic')"><i>I</i></button>
+        <input type="color" class="rich-color" onmousedown="event.stopPropagation()" onchange="richExecColor('detail-status-note', this.value)" title="Couleur du texte">
+      </div>
+      <div class="rich-editable" id="detail-status-note" contenteditable="true"></div>
     </div>
 
     <div id="detail-adhesion-fields" class="hidden">
@@ -374,7 +399,12 @@
     <div id="adh-comment-log" class="comment-log"></div>
     <div class="field" style="margin-top:12px;margin-bottom:8px;">
       <label>Ajouter un commentaire</label>
-      <textarea id="adh-new-comment" rows="7" oninput="autoGrow(this)"></textarea>
+      <div class="rich-toolbar">
+        <button type="button" onmousedown="event.preventDefault(); richExec('adh-new-comment','bold')"><b>G</b></button>
+        <button type="button" onmousedown="event.preventDefault(); richExec('adh-new-comment','italic')"><i>I</i></button>
+        <input type="color" class="rich-color" onmousedown="event.stopPropagation()" onchange="richExecColor('adh-new-comment', this.value)" title="Couleur du texte">
+      </div>
+      <div class="rich-editable" id="adh-new-comment" contenteditable="true" style="min-height:120px;"></div>
     </div>
     <div class="form-actions">
       <button class="btn-primary" onclick="saveAdherentComment()">Enregistrer le commentaire</button>
