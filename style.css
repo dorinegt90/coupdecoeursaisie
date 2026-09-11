@@ -166,6 +166,31 @@ button { font-family: inherit; }
 }
 .row-action-btn:hover { background: var(--teal); color: #fff; }
 
+.rich-toolbar { display: flex; gap: 4px; margin-bottom: 4px; }
+.rich-toolbar button {
+  border: 0.5px solid var(--border); background: #fff; width: 26px; height: 26px;
+  border-radius: 4px; cursor: pointer; font-size: 12px; color: var(--ink);
+}
+.rich-toolbar button:hover { background: var(--accent-bg); }
+.rich-color { width: 26px; height: 26px; border: 0.5px solid var(--border); border-radius: 4px; padding: 0; cursor: pointer; background: #fff; }
+.rich-editable {
+  width: 100%; min-height: 70px; border: 0.5px solid var(--border); border-radius: var(--radius);
+  padding: 8px 10px; font-size: 12.5px; color: var(--ink); background: #fff; overflow-wrap: break-word;
+}
+.rich-editable:focus { outline: 1.5px solid var(--teal); }
+
+.column-picker-wrap { position: relative; }
+.column-picker-panel {
+  position: absolute; top: 100%; left: 0; background: #fff; border: 0.5px solid var(--border);
+  border-radius: var(--radius); padding: 10px 14px; box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  z-index: 30; margin-top: 4px; display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 6px 16px; min-width: 360px;
+}
+.column-picker-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink); cursor: pointer; white-space: nowrap; }
+
+.row-action-sent { border-color: #3F8F5C; background: #3F8F5C; color: #fff; }
+.row-action-sent:hover { background: #357850; }
+
 .stat-card-clickable { cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s; }
 .stat-card-clickable:hover { border-color: rgba(0,0,0,0.12); }
 .stat-card-clickable.active-filter { border-color: var(--dark); }
