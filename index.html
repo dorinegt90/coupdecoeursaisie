@@ -267,7 +267,8 @@
       <div class="rich-toolbar">
         <button type="button" onmousedown="event.preventDefault(); richExec('f-commentaire','bold')"><b>G</b></button>
         <button type="button" onmousedown="event.preventDefault(); richExec('f-commentaire','italic')"><i>I</i></button>
-        <input type="color" class="rich-color" onmousedown="event.stopPropagation()" onchange="richExecColor('f-commentaire', this.value)" title="Couleur du texte">
+        <button type="button" class="rich-color-btn" onmousedown="event.preventDefault(); openColorPicker('f-commentaire')" title="Couleur du texte">A</button>
+        <input type="color" id="f-commentaire-color-input" class="rich-color-hidden" onchange="applyColorFromPicker('f-commentaire', this.value)">
       </div>
       <div class="rich-editable" id="f-commentaire" contenteditable="true"></div>
     </div>
@@ -303,7 +304,8 @@
     <div class="rich-toolbar">
       <button type="button" onmousedown="event.preventDefault(); richExec('detail-appel-decouverte','bold')"><b>G</b></button>
       <button type="button" onmousedown="event.preventDefault(); richExec('detail-appel-decouverte','italic')"><i>I</i></button>
-      <input type="color" class="rich-color" onmousedown="event.stopPropagation()" onchange="richExecColor('detail-appel-decouverte', this.value)" title="Couleur du texte">
+      <button type="button" class="rich-color-btn" onmousedown="event.preventDefault(); openColorPicker('detail-appel-decouverte')" title="Couleur du texte">A</button>
+        <input type="color" id="detail-appel-decouverte-color-input" class="rich-color-hidden" onchange="applyColorFromPicker('detail-appel-decouverte', this.value)">
     </div>
     <div class="rich-editable" id="detail-appel-decouverte" contenteditable="true" style="min-height:90px;"></div>
     <div class="form-actions" style="margin-bottom:8px;">
@@ -329,7 +331,8 @@
       <div class="rich-toolbar">
         <button type="button" onmousedown="event.preventDefault(); richExec('detail-status-note','bold')"><b>G</b></button>
         <button type="button" onmousedown="event.preventDefault(); richExec('detail-status-note','italic')"><i>I</i></button>
-        <input type="color" class="rich-color" onmousedown="event.stopPropagation()" onchange="richExecColor('detail-status-note', this.value)" title="Couleur du texte">
+        <button type="button" class="rich-color-btn" onmousedown="event.preventDefault(); openColorPicker('detail-status-note')" title="Couleur du texte">A</button>
+        <input type="color" id="detail-status-note-color-input" class="rich-color-hidden" onchange="applyColorFromPicker('detail-status-note', this.value)">
       </div>
       <div class="rich-editable" id="detail-status-note" contenteditable="true"></div>
     </div>
@@ -365,8 +368,11 @@
       <button class="btn-primary" onclick="saveStatusChange()">Enregistrer le statut</button>
     </div>
 
-    <div class="detail-section-title">Historique</div>
-    <div id="detail-history-list"><div class="empty-state">Aucun historique</div></div>
+    <div class="detail-section-title" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>Historique</span>
+      <button class="history-toggle-btn" id="history-toggle-btn" onclick="toggleHistoryVisibility()">Afficher l'historique</button>
+    </div>
+    <div id="detail-history-list" class="hidden"><div class="empty-state">Aucun historique</div></div>
 
     <div class="form-actions" style="margin-top:18px;">
       <button class="btn-danger" onclick="deleteCurrentContact()">Supprimer ce contact</button>
@@ -402,7 +408,8 @@
       <div class="rich-toolbar">
         <button type="button" onmousedown="event.preventDefault(); richExec('adh-new-comment','bold')"><b>G</b></button>
         <button type="button" onmousedown="event.preventDefault(); richExec('adh-new-comment','italic')"><i>I</i></button>
-        <input type="color" class="rich-color" onmousedown="event.stopPropagation()" onchange="richExecColor('adh-new-comment', this.value)" title="Couleur du texte">
+        <button type="button" class="rich-color-btn" onmousedown="event.preventDefault(); openColorPicker('adh-new-comment')" title="Couleur du texte">A</button>
+        <input type="color" id="adh-new-comment-color-input" class="rich-color-hidden" onchange="applyColorFromPicker('adh-new-comment', this.value)">
       </div>
       <div class="rich-editable" id="adh-new-comment" contenteditable="true" style="min-height:120px;"></div>
     </div>
