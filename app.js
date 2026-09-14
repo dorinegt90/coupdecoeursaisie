@@ -199,8 +199,26 @@ function richExec(id, cmd) {
   document.getElementById(id).focus();
   document.execCommand(cmd, false, null);
 }
-function richExecColor(id, color) {
-  document.getElementById(id).focus();
+
+let savedRichRange = null;
+
+function openColorPicker(editorId) {
+  const editor = document.getElementById(editorId);
+  const sel = window.getSelection();
+  if (sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
+    savedRichRange = sel.getRangeAt(0).cloneRange();
+  } else {
+    savedRichRange = null;
+  }
+  document.getElementById(editorId + '-color-input').click();
+}
+
+function applyColorFromPicker(editorId, color) {
+  const editor = document.getElementById(editorId);
+  editor.focus();
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  if (savedRichRange) sel.addRange(savedRichRange);
   document.execCommand('foreColor', false, color);
 }
 function getRichHTML(id) {
@@ -217,6 +235,23 @@ function stripHTML(html) {
   const tmp = document.createElement('div');
   tmp.innerHTML = html;
   return tmp.textContent || tmp.innerText || '';
+}
+
+// ---------------------------------------------------------
+// Notification discrète de confirmation
+// ---------------------------------------------------------
+function showToast(message) {
+  let toast = document.getElementById('app-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'app-toast';
+    toast.className = 'app-toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = message;
+  toast.classList.add('show');
+  clearTimeout(toast._hideTimeout);
+  toast._hideTimeout = setTimeout(() => toast.classList.remove('show'), 2200);
 }
 
 // ---------------------------------------------------------
@@ -802,6 +837,7 @@ async function saveContactForm() {
   closeContactForm();
   await loadAllData();
   switchTab('contacts');
+  showToast('Enregistrement effectué');
 }
 
 // ---------------------------------------------------------
@@ -842,8 +878,17 @@ function openContactDetail(id) {
   }
 
   renderHistory(c.id);
+  document.getElementById('detail-history-list').classList.add('hidden');
+  document.getElementById('history-toggle-btn').textContent = "Afficher l'historique";
   resetModalPosition('modal-contact-detail');
   document.getElementById('modal-contact-detail').classList.remove('hidden');
+}
+
+function toggleHistoryVisibility() {
+  const el = document.getElementById('detail-history-list');
+  const btn = document.getElementById('history-toggle-btn');
+  const nowHidden = el.classList.toggle('hidden');
+  btn.textContent = nowHidden ? "Afficher l'historique" : "Masquer l'historique";
 }
 
 function closeContactDetail() {
@@ -932,7 +977,8 @@ function renderDetailEditFields(c) {
       <div class="rich-toolbar">
         <button type="button" onmousedown="event.preventDefault(); richExec('e-commentaire','bold')"><b>G</b></button>
         <button type="button" onmousedown="event.preventDefault(); richExec('e-commentaire','italic')"><i>I</i></button>
-        <input type="color" class="rich-color" onmousedown="event.stopPropagation()" onchange="richExecColor('e-commentaire', this.value)" title="Couleur du texte">
+        <button type="button" class="rich-color-btn" onmousedown="event.preventDefault(); openColorPicker('e-commentaire')" title="Couleur du texte">A</button>
+        <input type="color" id="e-commentaire-color-input" class="rich-color-hidden" onchange="applyColorFromPicker('e-commentaire', this.value)">
       </div>
       <div class="rich-editable" id="e-commentaire" contenteditable="true">${c.commentaire || ''}</div>
     </div>
@@ -976,6 +1022,7 @@ async function saveEditedFields() {
   if (error) { alert("Erreur à la modification : " + error.message); return; }
   await loadAllData();
   openContactDetail(c.id);
+  showToast('Enregistrement effectué');
 }
 
 // ---------------------------------------------------------
@@ -993,6 +1040,7 @@ async function saveAppelDecouverte() {
   if (error) { alert("Erreur à l'enregistrement : " + error.message); return; }
   await loadAllData();
   openContactDetail(c.id);
+  showToast('Enregistrement effectué');
 }
 
 async function saveStatusChange() {
@@ -1039,6 +1087,7 @@ async function saveStatusChange() {
 
   await loadAllData();
   openContactDetail(c.id);
+  showToast('Enregistrement effectué');
 }
 
 function renderHistory(contactId) {
@@ -1103,7 +1152,8 @@ function renderCommentLog(contactId) {
             <div class="rich-toolbar">
               <button type="button" onmousedown="event.preventDefault(); richExec('edit-suivi-${e.id}','bold')"><b>G</b></button>
               <button type="button" onmousedown="event.preventDefault(); richExec('edit-suivi-${e.id}','italic')"><i>I</i></button>
-              <input type="color" class="rich-color" onmousedown="event.stopPropagation()" onchange="richExecColor('edit-suivi-${e.id}', this.value)" title="Couleur du texte">
+              <button type="button" class="rich-color-btn" onmousedown="event.preventDefault(); openColorPicker('edit-suivi-${e.id}')" title="Couleur du texte">A</button>
+              <input type="color" id="edit-suivi-${e.id}-color-input" class="rich-color-hidden" onchange="applyColorFromPicker('edit-suivi-${e.id}', this.value)">
             </div>
             <div class="rich-editable" id="edit-suivi-${e.id}" contenteditable="true">${e.commentaire}</div>
             <div class="form-actions">
@@ -1143,6 +1193,7 @@ async function saveEditSuivi(id) {
   editingSuiviId = null;
   await loadAllData();
   openAdherentDetail(currentDetailContact.id);
+  showToast('Enregistrement effectué');
 }
 async function deleteSuiviEntry(id) {
   if (!confirm('Supprimer ce commentaire ?')) return;
@@ -1164,6 +1215,7 @@ async function saveAdherentComment() {
 
   await loadAllData();
   openAdherentDetail(c.id);
+  showToast('Enregistrement effectué');
 }
 
 async function deleteCurrentContact() {
@@ -1510,4 +1562,5 @@ function saveBackupSettings() {
 
   updateBackupBadge();
   closeBackupSettings();
+  showToast('Enregistrement effectué');
 }
