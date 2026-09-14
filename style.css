@@ -191,6 +191,23 @@ button { font-family: inherit; }
 .row-action-sent { border-color: #3F8F5C; background: #3F8F5C; color: #fff; }
 .row-action-sent:hover { background: #357850; }
 
+.rich-color-btn { font-weight: 700; border-bottom: 3px solid var(--accent) !important; }
+.rich-color-hidden { position: absolute; width: 0; height: 0; padding: 0; margin: 0; border: none; opacity: 0; pointer-events: none; }
+
+.app-toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--dark); color: #fff; font-size: 12.5px; padding: 10px 20px;
+  border-radius: 20px; opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s;
+  z-index: 100;
+}
+.app-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+.history-toggle-btn {
+  border: 0.5px solid var(--border); background: #fff; color: var(--ink-soft);
+  font-size: 11px; padding: 6px 12px; border-radius: 20px; cursor: pointer; font-family: inherit;
+}
+.history-toggle-btn:hover { border-color: var(--teal); color: var(--teal); }
+
 .stat-card-clickable { cursor: pointer; border: 2px solid transparent; transition: border-color 0.15s; }
 .stat-card-clickable:hover { border-color: rgba(0,0,0,0.12); }
 .stat-card-clickable.active-filter { border-color: var(--dark); }
