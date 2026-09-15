@@ -65,7 +65,7 @@ body {
 .login-brand span { font-size: 22px; color: var(--ink); }
 
 /* ---------- App shell ---------- */
-#app-shell { max-width: 1600px; width: 90%; margin: 0 auto; padding: 16px; }
+#app-shell { max-width: 1850px; width: 95%; margin: 0 auto; padding: 16px; }
 
 .topbar {
   display: flex; align-items: center; justify-content: space-between;
