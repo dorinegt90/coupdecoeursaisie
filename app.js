@@ -960,7 +960,7 @@ function renderDetailEditFields(c) {
       <div class="field">
         <label>Connu par</label>
         <select id="e-connu-par">
-          ${['Recherche Google', 'Pub Google', 'Pub Facebook', 'Journal', 'Radio', 'Recommandation', 'Autre']
+          ${['Recherche Google', 'Pub Google', 'Pub Facebook', 'Réseaux sociaux', 'Journal', 'Radio', 'Recommandation', 'Autre']
             .map(o => `<option ${c.connu_par === o ? 'selected' : ''}>${o}</option>`).join('')}
         </select>
       </div>
