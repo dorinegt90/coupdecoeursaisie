@@ -266,6 +266,7 @@ const CONTACT_COLUMNS = [
   { key: 'telephone', label: 'Téléphone' },
   { key: 'deptcp', label: 'Dept / CP' },
   { key: 'ville', label: 'Ville' },
+  { key: 'pays', label: 'Pays' },
   { key: 'typecontact', label: 'Type de contact' },
   { key: 'commentaire', label: 'Commentaire' },
   { key: 'statut', label: 'Statut' },
@@ -618,6 +619,7 @@ function updateSortArrows(tableId, state) {
 function resetAdvancedFilters() {
   ['filter-ville', 'filter-deptcp', 'filter-age-min', 'filter-age-max'].forEach(id => document.getElementById(id).value = '');
   ['filter-connu-par', 'filter-type-contact', 'filter-statut'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('filter-pays').value = 'France';
   document.getElementById('search-input').value = '';
   renderContactsTable();
 }
@@ -625,6 +627,7 @@ function resetAdvancedFilters() {
 function getAdvancedFilters() {
   return {
     ville: (document.getElementById('filter-ville').value || '').trim().toLowerCase(),
+    pays: document.getElementById('filter-pays').value,
     deptCp: (document.getElementById('filter-deptcp').value || '').trim().toLowerCase(),
     connuPar: document.getElementById('filter-connu-par').value,
     typeContact: document.getElementById('filter-type-contact').value,
@@ -635,6 +638,7 @@ function getAdvancedFilters() {
 
 function matchesAdvanced(row, f) {
   if (f.ville && !(row.ville || '').toLowerCase().includes(f.ville)) return false;
+  if (f.pays && row.pays !== f.pays) return false;
   if (f.deptCp && !(row.dept_cp || '').toLowerCase().includes(f.deptCp)) return false;
   if (f.connuPar && row.connu_par !== f.connuPar) return false;
   if (f.typeContact && row.type_contact !== f.typeContact) return false;
@@ -660,7 +664,7 @@ function buildContactRows() {
     const adh = getAdhesion(c.id);
     return {
       id: c.id, created_at: c.created_at, prenom: c.prenom, nom: c.nom, age: c.age,
-      email: c.email, telephone: c.telephone, adresse: c.adresse, dept_cp: c.dept_cp, ville: c.ville,
+      email: c.email, telephone: c.telephone, adresse: c.adresse, dept_cp: c.dept_cp, ville: c.ville, pays: c.pays,
       connu_par: c.connu_par, type_contact: c.type_contact, commentaire: getLatestComment(c.id),
       statut: c.statut_actuel, formule: adh ? adh.type_formule : null,
       date_maj: getLastActivityDate(c.id), brevo_synced_at: c.brevo_synced_at,
@@ -686,7 +690,7 @@ function renderContactsTable() {
 
   const tbody = document.getElementById('contacts-table-body');
   if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="14" class="empty-state">Aucun contact ne correspond à cette recherche</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="15" class="empty-state">Aucun contact ne correspond à cette recherche</td></tr>`;
   } else {
     tbody.innerHTML = rows.map(r => {
       const brevoSent = !!r.brevo_synced_at;
@@ -700,6 +704,7 @@ function renderContactsTable() {
         <td data-col="telephone">${escapeHtml(r.telephone || '—')}</td>
         <td data-col="deptcp">${escapeHtml(r.dept_cp || '—')}</td>
         <td data-col="ville">${escapeHtml(r.ville || '—')}</td>
+        <td data-col="pays">${escapeHtml(r.pays || 'France')}</td>
         <td data-col="typecontact">${escapeHtml(r.type_contact || '—')}</td>
         <td data-col="commentaire" class="cell-ellipsis cell-muted">${r.commentaire || '—'}</td>
         <td data-col="statut"><span class="badge ${badgeClass(r.statut)}">${r.statut}</span></td>
@@ -797,6 +802,7 @@ function openContactForm() {
   ['f-nom', 'f-prenom', 'f-age', 'f-email', 'f-telephone', 'f-adresse', 'f-deptcp', 'f-ville']
     .forEach(id => document.getElementById(id).value = '');
   setRichHTML('f-commentaire', '');
+  document.getElementById('f-pays').value = 'France';
   document.getElementById('f-connu-par').selectedIndex = 0;
   document.getElementById('f-type-contact').selectedIndex = 0;
   resetModalPosition('modal-contact-form');
@@ -820,6 +826,7 @@ async function saveContactForm() {
     adresse: document.getElementById('f-adresse').value.trim() || null,
     dept_cp: document.getElementById('f-deptcp').value.trim() || null,
     ville: document.getElementById('f-ville').value.trim() || null,
+    pays: document.getElementById('f-pays').value,
     connu_par: document.getElementById('f-connu-par').value,
     type_contact: document.getElementById('f-type-contact').value,
     commentaire: getRichHTML('f-commentaire') || null,
@@ -932,6 +939,7 @@ function renderDetailViewFields(c) {
     field('Adresse', c.adresse),
     field('Dept / CP', c.dept_cp),
     field('Ville', c.ville),
+    field('Pays', c.pays || 'France'),
     field('Connu par', c.connu_par),
     field('Type de contact', c.type_contact),
     fieldHTML('Commentaire', getLatestComment(c.id)),
@@ -951,6 +959,13 @@ function renderDetailEditFields(c) {
     <div class="form-grid grid-2">
       <div class="field"><label>Téléphone</label><input id="e-telephone" value="${escapeHtml(c.telephone || '')}"></div>
       <div class="field"><label>Ville</label><input id="e-ville" value="${escapeHtml(c.ville || '')}"></div>
+      <div class="field">
+        <label>Pays</label>
+        <select id="e-pays">
+          <option value="France" ${(c.pays || 'France') === 'France' ? 'selected' : ''}>France</option>
+          <option value="Suisse" ${c.pays === 'Suisse' ? 'selected' : ''}>Suisse</option>
+        </select>
+      </div>
     </div>
     <div class="form-grid grid-2">
       <div class="field"><label>Adresse</label><input id="e-adresse" value="${escapeHtml(c.adresse || '')}"></div>
@@ -1012,6 +1027,7 @@ async function saveEditedFields() {
     email: document.getElementById('e-email').value.trim() || null,
     telephone: document.getElementById('e-telephone').value.trim() || null,
     ville: document.getElementById('e-ville').value.trim() || null,
+    pays: document.getElementById('e-pays').value,
     adresse: document.getElementById('e-adresse').value.trim() || null,
     dept_cp: document.getElementById('e-deptcp').value.trim() || null,
     connu_par: document.getElementById('e-connu-par').value,
