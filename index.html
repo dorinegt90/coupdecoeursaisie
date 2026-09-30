@@ -122,6 +122,14 @@
 
     <div id="advanced-filters-panel" class="advanced-filters-panel">
       <div class="field"><label>Ville</label><input type="text" id="filter-ville" oninput="renderContactsTable()"></div>
+      <div class="field">
+        <label>Pays</label>
+        <select id="filter-pays" onchange="renderContactsTable()">
+          <option value="">Tous</option>
+          <option value="France" selected>France</option>
+          <option value="Suisse">Suisse</option>
+        </select>
+      </div>
       <div class="field"><label>Dept / CP</label><input type="text" id="filter-deptcp" oninput="renderContactsTable()"></div>
       <div class="field">
         <label>Connu par</label>
@@ -164,6 +172,7 @@
             <th data-col="telephone" onclick="sortTable('contacts','telephone')">Téléphone<span class="sort-arrow" data-field="telephone"></span></th>
             <th data-col="deptcp" onclick="sortTable('contacts','dept_cp')">Dept / CP<span class="sort-arrow" data-field="dept_cp"></span></th>
             <th data-col="ville" onclick="sortTable('contacts','ville')">Ville<span class="sort-arrow" data-field="ville"></span></th>
+            <th data-col="pays" onclick="sortTable('contacts','pays')">Pays<span class="sort-arrow" data-field="pays"></span></th>
             <th data-col="typecontact" onclick="sortTable('contacts','type_contact')">Type de contact<span class="sort-arrow" data-field="type_contact"></span></th>
             <th data-col="commentaire" onclick="sortTable('contacts','commentaire')">Commentaire<span class="sort-arrow" data-field="commentaire"></span></th>
             <th data-col="statut" onclick="sortTable('contacts','statut')">Statut<span class="sort-arrow" data-field="statut"></span></th>
@@ -242,10 +251,17 @@
       <div class="field"><label>Email</label><input type="email" id="f-email"></div>
       <div class="field"><label>Téléphone</label><input type="tel" id="f-telephone"></div>
     </div>
-    <div class="form-grid" style="grid-template-columns:2fr 1fr 1fr;">
+    <div class="form-grid" style="grid-template-columns:2fr 1fr 1fr 1fr;">
       <div class="field"><label>Adresse</label><input type="text" id="f-adresse"></div>
       <div class="field"><label>Dept / CP</label><input type="text" id="f-deptcp" placeholder="90 ou 90000"></div>
       <div class="field"><label>Ville</label><input type="text" id="f-ville"></div>
+      <div class="field">
+        <label>Pays</label>
+        <select id="f-pays">
+          <option value="France" selected>France</option>
+          <option value="Suisse">Suisse</option>
+        </select>
+      </div>
     </div>
     <div class="form-grid grid-2">
       <div class="field">
