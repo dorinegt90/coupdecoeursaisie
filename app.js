@@ -803,6 +803,8 @@ function openContactForm() {
     .forEach(id => document.getElementById(id).value = '');
   setRichHTML('f-commentaire', '');
   document.getElementById('f-pays').value = 'France';
+  document.getElementById('f-recommande-par').value = '';
+  document.getElementById('f-recommande-par-wrap').classList.add('hidden');
   document.getElementById('f-connu-par').selectedIndex = 0;
   document.getElementById('f-type-contact').selectedIndex = 0;
   resetModalPosition('modal-contact-form');
@@ -828,6 +830,7 @@ async function saveContactForm() {
     ville: document.getElementById('f-ville').value.trim() || null,
     pays: document.getElementById('f-pays').value,
     connu_par: document.getElementById('f-connu-par').value,
+    recommande_par: document.getElementById('f-recommande-par').value.trim() || null,
     type_contact: document.getElementById('f-type-contact').value,
     commentaire: getRichHTML('f-commentaire') || null,
     statut_actuel: 'Contact entrant',
@@ -942,6 +945,7 @@ function renderDetailViewFields(c) {
     field('Pays', c.pays || 'France'),
     field('Connu par', c.connu_par),
     field('Type de contact', c.type_contact),
+    c.type_contact === 'Recommandation' ? field('Recommandé par', c.recommande_par) : '',
     fieldHTML('Commentaire', getLatestComment(c.id)),
   ].join('');
 }
@@ -981,11 +985,15 @@ function renderDetailEditFields(c) {
       </div>
       <div class="field">
         <label>Type de contact</label>
-        <select id="e-type-contact">
-          ${['Appel découverte', 'Appel entrant', 'Mail', 'Whatsapp', 'SMS', 'Facebook', 'Autre']
+        <select id="e-type-contact" onchange="document.getElementById('e-recommande-par-wrap').classList.toggle('hidden', this.value !== 'Recommandation')">
+          ${['Appel découverte', 'Appel entrant', 'Mail', 'Whatsapp', 'SMS', 'Facebook', 'Recommandation', 'Autre']
             .map(o => `<option ${c.type_contact === o ? 'selected' : ''}>${o}</option>`).join('')}
         </select>
       </div>
+    </div>
+    <div class="field ${c.type_contact === 'Recommandation' ? '' : 'hidden'}" id="e-recommande-par-wrap" style="margin-bottom:12px;">
+      <label>Recommandé par</label>
+      <input type="text" id="e-recommande-par" placeholder="Nom de la personne" value="${escapeHtml(c.recommande_par || '')}">
     </div>
     <div class="field" style="margin-bottom:12px;">
       <label>Commentaire</label>
@@ -1032,6 +1040,7 @@ async function saveEditedFields() {
     dept_cp: document.getElementById('e-deptcp').value.trim() || null,
     connu_par: document.getElementById('e-connu-par').value,
     type_contact: document.getElementById('e-type-contact').value,
+    recommande_par: document.getElementById('e-recommande-par').value.trim() || null,
     commentaire: getRichHTML('e-commentaire') || null,
   };
   const { error } = await supabaseClient.from('contacts').update(payload).eq('id', c.id);
