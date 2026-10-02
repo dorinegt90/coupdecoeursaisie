@@ -145,7 +145,7 @@
         <select id="filter-type-contact" onchange="renderContactsTable()">
           <option value="">Tous</option>
           <option>Appel découverte</option><option>Appel entrant</option><option>Mail</option>
-          <option>Whatsapp</option><option>SMS</option><option>Facebook</option><option>Autre</option>
+          <option>Whatsapp</option><option>SMS</option><option>Facebook</option><option>Recommandation</option><option>Autre</option>
         </select>
       </div>
       <div class="field"><label>Âge min</label><input type="number" id="filter-age-min" oninput="renderContactsTable()"></div>
@@ -274,11 +274,15 @@
       </div>
       <div class="field">
         <label>Type de contact</label>
-        <select id="f-type-contact">
+        <select id="f-type-contact" onchange="document.getElementById('f-recommande-par-wrap').classList.toggle('hidden', this.value !== 'Recommandation')">
           <option>Appel découverte</option><option>Appel entrant</option><option>Mail</option>
-          <option>Whatsapp</option><option>SMS</option><option>Facebook</option><option>Autre</option>
+          <option>Whatsapp</option><option>SMS</option><option>Facebook</option><option>Recommandation</option><option>Autre</option>
         </select>
       </div>
+    </div>
+    <div class="field hidden" id="f-recommande-par-wrap" style="margin-bottom:12px;">
+      <label>Recommandé par</label>
+      <input type="text" id="f-recommande-par" placeholder="Nom de la personne">
     </div>
     <div class="field" style="margin-bottom:12px;">
       <label>Commentaire</label>
