@@ -945,7 +945,7 @@ function renderDetailViewFields(c) {
     field('Pays', c.pays || 'France'),
     field('Connu par', c.connu_par),
     field('Type de contact', c.type_contact),
-    c.type_contact === 'Recommandation' ? field('Recommandé par', c.recommande_par) : '',
+    c.connu_par === 'Recommandation' ? field('Recommandé par', c.recommande_par) : '',
     fieldHTML('Commentaire', getLatestComment(c.id)),
   ].join('');
 }
@@ -978,20 +978,20 @@ function renderDetailEditFields(c) {
     <div class="form-grid grid-2">
       <div class="field">
         <label>Connu par</label>
-        <select id="e-connu-par">
+        <select id="e-connu-par" onchange="document.getElementById('e-recommande-par-wrap').classList.toggle('hidden', this.value !== 'Recommandation')">
           ${['Recherche Google', 'Pub Google', 'Pub Facebook', 'Réseaux sociaux', 'Journal', 'Radio', 'Recommandation', 'Autre']
             .map(o => `<option ${c.connu_par === o ? 'selected' : ''}>${o}</option>`).join('')}
         </select>
       </div>
       <div class="field">
         <label>Type de contact</label>
-        <select id="e-type-contact" onchange="document.getElementById('e-recommande-par-wrap').classList.toggle('hidden', this.value !== 'Recommandation')">
-          ${['Appel découverte', 'Appel entrant', 'Mail', 'Whatsapp', 'SMS', 'Facebook', 'Recommandation', 'Autre']
+        <select id="e-type-contact">
+          ${['Appel découverte', 'Appel entrant', 'Mail', 'Whatsapp', 'SMS', 'Facebook', 'Autre']
             .map(o => `<option ${c.type_contact === o ? 'selected' : ''}>${o}</option>`).join('')}
         </select>
       </div>
     </div>
-    <div class="field ${c.type_contact === 'Recommandation' ? '' : 'hidden'}" id="e-recommande-par-wrap" style="margin-bottom:12px;">
+    <div class="field ${c.connu_par === 'Recommandation' ? '' : 'hidden'}" id="e-recommande-par-wrap" style="margin-bottom:12px;">
       <label>Recommandé par</label>
       <input type="text" id="e-recommande-par" placeholder="Nom de la personne" value="${escapeHtml(c.recommande_par || '')}">
     </div>
