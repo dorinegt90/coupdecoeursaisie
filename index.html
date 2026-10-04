@@ -114,6 +114,7 @@
         <option value="">Statut : Tous</option>
         <option value="Contact entrant">Contact entrant</option>
         <option value="Appel découverte programmé">Appel découverte programmé</option>
+        <option value="RDV physique programmé">RDV physique programmé</option>
         <option value="Prospect">Prospect</option>
         <option value="Adhérent">Adhérent</option>
         <option value="Non qualifié">Non qualifié</option>
@@ -266,7 +267,7 @@
     <div class="form-grid grid-2">
       <div class="field">
         <label>Connu par</label>
-        <select id="f-connu-par" onchange="document.getElementById('f-recommande-par-wrap').classList.toggle('hidden', this.value !== 'Recommandation')">
+        <select id="f-connu-par">
           <option>Recherche Google</option><option>Pub Google</option><option>Pub Facebook</option>
           <option>Réseaux sociaux</option>
           <option>Journal</option><option>Radio</option><option>Recommandation</option><option>Autre</option>
@@ -279,10 +280,6 @@
           <option>Whatsapp</option><option>SMS</option><option>Facebook</option><option>Autre</option>
         </select>
       </div>
-    </div>
-    <div class="field hidden" id="f-recommande-par-wrap" style="margin-bottom:12px;">
-      <label>Recommandé par</label>
-      <input type="text" id="f-recommande-par" placeholder="Nom de la personne">
     </div>
     <div class="field" style="margin-bottom:12px;">
       <label>Commentaire</label>
@@ -343,6 +340,7 @@
       <select id="detail-new-status" onchange="onDetailStatusChange()">
         <option value="Contact entrant">Contact entrant</option>
         <option value="Appel découverte programmé">Appel découverte programmé</option>
+        <option value="RDV physique programmé">RDV physique programmé</option>
         <option value="Prospect">Prospect</option>
         <option value="Adhérent">Adhérent</option>
         <option value="Non qualifié">Non qualifié</option>
