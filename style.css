@@ -23,6 +23,7 @@
   --badge-prospect-bg: #DCEEF2; --badge-prospect-text: #146A7E;
   --badge-adherent-bg: #FBE3DE; --badge-adherent-text: var(--red-dark);
   --badge-nonqualifie-bg: #E4E3E1; --badge-nonqualifie-text: #54514D;
+  --badge-rdv-bg: #E8E1F5; --badge-rdv-text: #6B4FA0;
 
   --radius: 8px;
   --radius-lg: 12px;
@@ -279,6 +280,7 @@ button { font-family: inherit; }
 .badge-prospect { background: var(--badge-prospect-bg); color: var(--badge-prospect-text); }
 .badge-adherent { background: var(--badge-adherent-bg); color: var(--badge-adherent-text); }
 .badge-nonqualifie { background: var(--badge-nonqualifie-bg); color: var(--badge-nonqualifie-text); }
+.badge-rdv { background: var(--badge-rdv-bg); color: var(--badge-rdv-text); }
 
 /* ---------- Contacts / Adhérents : barre d'outils ---------- */
 .contacts-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
