@@ -22,7 +22,7 @@ const FILTER_LABELS = {
 let contactsSort = { field: 'date_maj', dir: 'desc' };
 let adherentsSort = { field: 'date_maj', dir: 'desc' };
 
-const STATUTS = ['Contact entrant', 'Appel découverte programmé', 'Prospect', 'Adhérent', 'Non qualifié'];
+const STATUTS = ['Contact entrant', 'Appel découverte programmé', 'RDV physique programmé', 'Prospect', 'Adhérent', 'Non qualifié'];
 
 // ---------------------------------------------------------
 // Popups déplaçables : glisser depuis l'en-tête
@@ -554,6 +554,7 @@ function renderDashboard() {
 function badgeClass(statut) {
   switch (statut) {
     case 'Appel découverte programmé': return 'badge-decouverte';
+    case 'RDV physique programmé': return 'badge-rdv';
     case 'Prospect': return 'badge-prospect';
     case 'Adhérent': return 'badge-adherent';
     case 'Non qualifié': return 'badge-nonqualifie';
@@ -563,6 +564,7 @@ function badgeClass(statut) {
 function getAvatarColor(statut) {
   switch (statut) {
     case 'Appel découverte programmé': return '#9C7526';
+    case 'RDV physique programmé': return '#6B4FA0';
     case 'Prospect': return '#1C87A0';
     case 'Adhérent': return '#C44434';
     case 'Non qualifié': return '#54514D';
@@ -803,8 +805,6 @@ function openContactForm() {
     .forEach(id => document.getElementById(id).value = '');
   setRichHTML('f-commentaire', '');
   document.getElementById('f-pays').value = 'France';
-  document.getElementById('f-recommande-par').value = '';
-  document.getElementById('f-recommande-par-wrap').classList.add('hidden');
   document.getElementById('f-connu-par').selectedIndex = 0;
   document.getElementById('f-type-contact').selectedIndex = 0;
   resetModalPosition('modal-contact-form');
@@ -830,7 +830,6 @@ async function saveContactForm() {
     ville: document.getElementById('f-ville').value.trim() || null,
     pays: document.getElementById('f-pays').value,
     connu_par: document.getElementById('f-connu-par').value,
-    recommande_par: document.getElementById('f-recommande-par').value.trim() || null,
     type_contact: document.getElementById('f-type-contact').value,
     commentaire: getRichHTML('f-commentaire') || null,
     statut_actuel: 'Contact entrant',
