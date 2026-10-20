@@ -621,7 +621,7 @@ function updateSortArrows(tableId, state) {
 function resetAdvancedFilters() {
   ['filter-ville', 'filter-deptcp', 'filter-age-min', 'filter-age-max'].forEach(id => document.getElementById(id).value = '');
   ['filter-connu-par', 'filter-type-contact', 'filter-statut'].forEach(id => document.getElementById(id).value = '');
-  document.getElementById('filter-pays').value = 'France';
+  document.getElementById('filter-pays').value = '';
   document.getElementById('search-input').value = '';
   renderContactsTable();
 }
@@ -985,7 +985,7 @@ function renderDetailEditFields(c) {
       <div class="field">
         <label>Type de contact</label>
         <select id="e-type-contact">
-          ${['Appel découverte', 'Appel entrant', 'Mail', 'Whatsapp', 'SMS', 'Facebook', 'Autre']
+          ${['Appel découverte', 'Appel entrant', 'Mail', 'Whatsapp', 'SMS', 'Facebook', 'Événement', 'Autre']
             .map(o => `<option ${c.type_contact === o ? 'selected' : ''}>${o}</option>`).join('')}
         </select>
       </div>
