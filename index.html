@@ -335,6 +335,7 @@
     <div class="status-row">
       <span id="detail-current-badge" class="badge">—</span>
     </div>
+    <div id="detail-appel-info" class="appel-info hidden"></div>
     <div class="field" style="margin-bottom:8px;">
       <label>Nouveau statut</label>
       <select id="detail-new-status" onchange="onDetailStatusChange()">
@@ -345,6 +346,13 @@
         <option value="Adhérent">Adhérent</option>
         <option value="Non qualifié">Non qualifié</option>
       </select>
+    </div>
+    <div id="detail-appel-fields" class="hidden" style="margin-bottom:8px;">
+      <div class="form-grid grid-2" style="margin-bottom:8px;">
+        <div class="field"><label>Jour de l'appel</label><input type="date" id="detail-appel-date"></div>
+        <div class="field"><label>Heure</label><input type="time" id="detail-appel-heure"></div>
+      </div>
+      <button type="button" class="btn-secondary" onclick="addAppelToGoogleCalendar()">📅 Ajouter à Google Agenda</button>
     </div>
     <div class="field" style="margin-bottom:8px;">
       <label>Commentaire</label>
