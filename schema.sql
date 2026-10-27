@@ -21,6 +21,13 @@ create table if not exists contacts (
   type_contact    text,
   commentaire     text,
   statut_actuel   text not null default 'Contact entrant',
+  updated_at      timestamptz not null default now(),
+  pays            text not null default 'France',
+  recommande_par  text,
+  appel_decouverte text,
+  appel_decouverte_date date,
+  appel_decouverte_heure time,
+  brevo_synced_at timestamptz,
   user_id         uuid not null default auth.uid()
 );
 
@@ -41,6 +48,7 @@ create table if not exists adhesions (
   mode_reglement    text,
   nombre_fois       integer default 1,
   date_adhesion     date not null default current_date,
+  date_debut_contrat date,
   user_id           uuid not null default auth.uid()
 );
 
@@ -91,3 +99,16 @@ grant select, insert, update, delete on statut_historique to authenticated;
 grant select, insert, update, delete on adhesions to authenticated;
 grant select, insert, update, delete on suivi_historique to authenticated;
 alter default privileges in schema public grant select, insert, update, delete on tables to authenticated;
+
+create or replace function set_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_contacts_updated_at on contacts;
+create trigger trg_contacts_updated_at
+before update on contacts
+for each row execute function set_updated_at();
