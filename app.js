@@ -24,6 +24,9 @@ let adherentsSort = { field: 'date_maj', dir: 'desc' };
 
 const STATUTS = ['Contact entrant', 'Appel découverte programmé', 'RDV physique programmé', 'Prospect', 'Adhérent', 'Non qualifié'];
 
+// Durée par défaut d'un appel découverte dans Google Agenda (en minutes)
+const APPEL_DECOUVERTE_DUREE_MIN = 30;
+
 // ---------------------------------------------------------
 // Popups déplaçables : glisser depuis l'en-tête
 // ---------------------------------------------------------
@@ -866,6 +869,19 @@ function openContactDetail(id) {
   setRichHTML('detail-status-note', '');
   setRichHTML('detail-appel-decouverte', c.appel_decouverte || '');
 
+  const appelDate = c.appel_decouverte_date || '';
+  const appelHeure = (c.appel_decouverte_heure || '').slice(0, 5);
+  document.getElementById('detail-appel-date').value = appelDate;
+  document.getElementById('detail-appel-heure').value = appelHeure;
+  const appelInfo = document.getElementById('detail-appel-info');
+  if (c.statut_actuel === 'Appel découverte programmé' && appelDate) {
+    const d = new Date(appelDate + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    appelInfo.textContent = `📅 Appel prévu le ${d}${appelHeure ? ' à ' + appelHeure : ''}`;
+    appelInfo.classList.remove('hidden');
+  } else {
+    appelInfo.classList.add('hidden');
+  }
+
   renderDetailViewFields(c);
   document.getElementById('detail-view-fields').classList.remove('hidden');
   document.getElementById('detail-edit-fields').classList.add('hidden');
@@ -1055,6 +1071,36 @@ async function saveEditedFields() {
 function onDetailStatusChange() {
   const newStatus = document.getElementById('detail-new-status').value;
   document.getElementById('detail-adhesion-fields').classList.toggle('hidden', newStatus !== 'Adhérent');
+  document.getElementById('detail-appel-fields').classList.toggle('hidden', newStatus !== 'Appel découverte programmé');
+}
+
+// Ouvre Google Agenda avec l'événement déjà rempli (il reste à cliquer sur « Enregistrer » côté Google)
+function addAppelToGoogleCalendar() {
+  const c = currentDetailContact;
+  const date = document.getElementById('detail-appel-date').value;   // AAAA-MM-JJ
+  const heure = document.getElementById('detail-appel-heure').value; // HH:MM
+  if (!date || !heure) {
+    alert("Renseignez d'abord le jour et l'heure de l'appel.");
+    return;
+  }
+
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = d => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+  const start = new Date(`${date}T${heure}:00`);
+  const end = new Date(start.getTime() + APPEL_DECOUVERTE_DUREE_MIN * 60000);
+
+  const nom = `${c.prenom || ''} ${c.nom || ''}`.trim();
+  const details = [
+    c.telephone ? `Téléphone : ${c.telephone}` : '',
+    c.email ? `Email : ${c.email}` : '',
+  ].filter(Boolean).join('\n');
+
+  const url = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
+    + '&text=' + encodeURIComponent(`Appel découverte${nom ? ' — ' + nom : ''}`)
+    + '&dates=' + fmt(start) + '/' + fmt(end)
+    + '&details=' + encodeURIComponent(details)
+    + '&ctz=' + encodeURIComponent('Europe/Paris');
+  window.open(url, '_blank');
 }
 
 async function saveAppelDecouverte() {
@@ -1103,6 +1149,10 @@ async function saveStatusChange() {
   if (newStatus !== c.statut_actuel) updatePayload.statut_actuel = newStatus;
   // Le dernier commentaire saisi devient le commentaire affiché dans les listes
   if (commentaire) updatePayload.commentaire = commentaire;
+  if (newStatus === 'Appel découverte programmé') {
+    updatePayload.appel_decouverte_date = document.getElementById('detail-appel-date').value || null;
+    updatePayload.appel_decouverte_heure = document.getElementById('detail-appel-heure').value || null;
+  }
 
   if (Object.keys(updatePayload).length > 0) {
     const { error: updError } = await supabaseClient.from('contacts').update(updatePayload).eq('id', c.id);
