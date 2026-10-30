@@ -352,7 +352,11 @@
         <div class="field"><label>Jour de l'appel</label><input type="date" id="detail-appel-date"></div>
         <div class="field"><label>Heure</label><input type="time" id="detail-appel-heure"></div>
       </div>
-      <button type="button" class="btn-secondary" onclick="addAppelToGoogleCalendar()">📅 Ajouter à Google Agenda</button>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="btn-secondary" onclick="addAppelToGoogleCalendar()">📅 Ajouter à Google Agenda</button>
+        <button type="button" class="btn-secondary" onclick="openAgendaSettings()" title="Choisir l'agenda de destination">⚙ Choisir l'agenda</button>
+      </div>
+      <div id="agenda-target-label" class="agenda-target-label"></div>
     </div>
     <div class="field" style="margin-bottom:8px;">
       <label>Commentaire</label>
@@ -507,6 +511,29 @@
     <div class="form-actions">
       <button class="btn-secondary" onclick="closeBackupSettings()">Annuler</button>
       <button class="btn-primary" onclick="saveBackupSettings()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODALE : AGENDA GOOGLE DE DESTINATION ================= -->
+<div id="modal-agenda-settings" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:460px;">
+    <div class="modal-header">
+      <div class="modal-title"><span style="font-weight:600;">Agenda Google de destination</span></div>
+      <button class="icon-btn" onclick="closeAgendaSettings()">✕</button>
+    </div>
+    <div class="field" style="margin-bottom:10px;">
+      <label>Identifiant de l'agenda</label>
+      <input type="text" id="settings-agenda-id" placeholder="ex. abc123@group.calendar.google.com">
+    </div>
+    <p style="font-size:11px;color:var(--ink-soft);line-height:1.6;margin:0 0 16px;">
+      Laissez vide pour utiliser l'agenda par défaut du compte Google connecté.<br>
+      Pour trouver l'identifiant : Google Agenda &gt; Paramètres de l'agenda concerné &gt; « Intégrer l'agenda » &gt; « ID de l'agenda ».<br>
+      Le compte Google connecté doit avoir le droit de modifier cet agenda.
+    </p>
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="closeAgendaSettings()">Annuler</button>
+      <button class="btn-primary" onclick="saveAgendaSettings()">Enregistrer</button>
     </div>
   </div>
 </div>
