@@ -369,3 +369,5 @@ table.data-table tbody tr:hover { background: var(--accent-bg); }
 .empty-state { text-align: center; color: var(--ink-soft); font-size: 12px; padding: 30px 0; }
 
 .appel-info { font-size: 12px; color: var(--teal); margin-bottom: 10px; }
+
+.agenda-target-label { font-size: 11px; color: var(--ink-soft); margin-top: 6px; }
