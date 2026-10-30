@@ -873,6 +873,7 @@ function openContactDetail(id) {
   const appelHeure = (c.appel_decouverte_heure || '').slice(0, 5);
   document.getElementById('detail-appel-date').value = appelDate;
   document.getElementById('detail-appel-heure').value = appelHeure;
+  updateAgendaTargetLabel();
   const appelInfo = document.getElementById('detail-appel-info');
   if (c.statut_actuel === 'Appel découverte programmé' && appelDate) {
     const d = new Date(appelDate + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
@@ -1099,8 +1100,36 @@ function addAppelToGoogleCalendar() {
     + '&text=' + encodeURIComponent(`Appel découverte${nom ? ' — ' + nom : ''}`)
     + '&dates=' + fmt(start) + '/' + fmt(end)
     + '&details=' + encodeURIComponent(details)
-    + '&ctz=' + encodeURIComponent('Europe/Paris');
+    + '&ctz=' + encodeURIComponent('Europe/Paris')
+    + (getAgendaId() ? '&src=' + encodeURIComponent(getAgendaId()) : '');
   window.open(url, '_blank');
+}
+
+// ---------------------------------------------------------
+// Agenda Google de destination (mémorisé dans ce navigateur)
+// ---------------------------------------------------------
+function getAgendaId() {
+  return (localStorage.getItem('googleAgendaId') || '').trim();
+}
+function updateAgendaTargetLabel() {
+  const id = getAgendaId();
+  document.getElementById('agenda-target-label').textContent =
+    id ? `Agenda de destination : ${id}` : 'Agenda de destination : agenda par défaut du compte Google connecté';
+}
+function openAgendaSettings() {
+  document.getElementById('settings-agenda-id').value = getAgendaId();
+  resetModalPosition('modal-agenda-settings');
+  document.getElementById('modal-agenda-settings').classList.remove('hidden');
+}
+function closeAgendaSettings() {
+  document.getElementById('modal-agenda-settings').classList.add('hidden');
+}
+function saveAgendaSettings() {
+  const id = document.getElementById('settings-agenda-id').value.trim();
+  if (id) localStorage.setItem('googleAgendaId', id); else localStorage.removeItem('googleAgendaId');
+  updateAgendaTargetLabel();
+  closeAgendaSettings();
+  showToast('Enregistrement effectué');
 }
 
 async function saveAppelDecouverte() {
