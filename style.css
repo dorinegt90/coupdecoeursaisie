@@ -371,3 +371,5 @@ table.data-table tbody tr:hover { background: var(--accent-bg); }
 .appel-info { font-size: 12px; color: var(--teal); margin-bottom: 10px; }
 
 .agenda-target-label { font-size: 11px; color: var(--ink-soft); margin-top: 6px; }
+.scheduling-block { margin-bottom: 14px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
+.scheduling-title { font-size: 11px; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-soft); margin-bottom: 8px; }
