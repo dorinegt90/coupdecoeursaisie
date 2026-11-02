@@ -26,6 +26,8 @@ const STATUTS = ['Contact entrant', 'Appel découverte programmé', 'RDV physiqu
 
 // Durée par défaut d'un appel découverte dans Google Agenda (en minutes)
 const APPEL_DECOUVERTE_DUREE_MIN = 30;
+// Durée par défaut d'un RDV physique dans Google Agenda (en minutes)
+const RDV_PHYSIQUE_DUREE_MIN = 60;
 
 // ---------------------------------------------------------
 // Popups déplaçables : glisser depuis l'en-tête
@@ -810,6 +812,8 @@ function openContactForm() {
   document.getElementById('f-pays').value = 'France';
   document.getElementById('f-connu-par').selectedIndex = 0;
   document.getElementById('f-type-contact').selectedIndex = 0;
+  document.getElementById('f-scheduling').innerHTML = schedulingBlocksHTML('f', 'form', {});
+  updateAgendaTargetLabel();
   resetModalPosition('modal-contact-form');
   document.getElementById('modal-contact-form').classList.remove('hidden');
 }
@@ -836,7 +840,17 @@ async function saveContactForm() {
     type_contact: document.getElementById('f-type-contact').value,
     commentaire: getRichHTML('f-commentaire') || null,
     statut_actuel: 'Contact entrant',
+    appel_decouverte_date: document.getElementById('f-appel-date').value || null,
+    appel_decouverte_heure: document.getElementById('f-appel-heure').value || null,
+    rdv_physique_date: document.getElementById('f-rdv-date').value || null,
+    rdv_physique_heure: document.getElementById('f-rdv-heure').value || null,
   };
+
+  // Si un jour est renseigné, le contact démarre directement au statut correspondant
+  let statutInitial = 'Contact entrant';
+  if (payload.rdv_physique_date) statutInitial = 'RDV physique programmé';
+  else if (payload.appel_decouverte_date) statutInitial = 'Appel découverte programmé';
+  payload.statut_actuel = statutInitial;
 
   const { data, error } = await supabaseClient.from('contacts').insert(payload).select().single();
   if (error) { alert("Erreur à l'enregistrement : " + error.message); return; }
@@ -845,6 +859,9 @@ async function saveContactForm() {
     contact_id: data.id, statut: 'Contact entrant', date_changement: payload.created_at,
     commentaire: payload.commentaire,
   });
+  if (statutInitial !== 'Contact entrant') {
+    await supabaseClient.from('statut_historique').insert({ contact_id: data.id, statut: statutInitial });
+  }
 
   closeContactForm();
   await loadAllData();
@@ -855,7 +872,7 @@ async function saveContactForm() {
 // ---------------------------------------------------------
 // Fiche détail d'un contact
 // ---------------------------------------------------------
-function openContactDetail(id) {
+function openContactDetail(id, opts = {}) {
   const c = contacts.find(x => x.id === id);
   if (!c) return;
   currentDetailContact = c;
@@ -871,13 +888,20 @@ function openContactDetail(id) {
 
   const appelDate = c.appel_decouverte_date || '';
   const appelHeure = (c.appel_decouverte_heure || '').slice(0, 5);
+  const rdvDate = c.rdv_physique_date || '';
+  const rdvHeure = (c.rdv_physique_heure || '').slice(0, 5);
   document.getElementById('detail-appel-date').value = appelDate;
   document.getElementById('detail-appel-heure').value = appelHeure;
+  document.getElementById('detail-rdv-date').value = rdvDate;
+  document.getElementById('detail-rdv-heure').value = rdvHeure;
   updateAgendaTargetLabel();
   const appelInfo = document.getElementById('detail-appel-info');
+  const fmtLong = d => new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   if (c.statut_actuel === 'Appel découverte programmé' && appelDate) {
-    const d = new Date(appelDate + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    appelInfo.textContent = `📅 Appel prévu le ${d}${appelHeure ? ' à ' + appelHeure : ''}`;
+    appelInfo.textContent = `📅 Appel prévu le ${fmtLong(appelDate)}${appelHeure ? ' à ' + appelHeure : ''}`;
+    appelInfo.classList.remove('hidden');
+  } else if (c.statut_actuel === 'RDV physique programmé' && rdvDate) {
+    appelInfo.textContent = `📅 RDV physique prévu le ${fmtLong(rdvDate)}${rdvHeure ? ' à ' + rdvHeure : ''}`;
     appelInfo.classList.remove('hidden');
   } else {
     appelInfo.classList.add('hidden');
@@ -904,8 +928,10 @@ function openContactDetail(id) {
   }
 
   renderHistory(c.id);
-  document.getElementById('detail-history-list').classList.add('hidden');
-  document.getElementById('history-toggle-btn').textContent = "Afficher l'historique";
+  // Après un enregistrement de statut, l'historique reste déplié pour voir le commentaire saisi
+  const histEl = document.getElementById('detail-history-list');
+  histEl.classList.toggle('hidden', !opts.showHistory);
+  document.getElementById('history-toggle-btn').textContent = opts.showHistory ? "Masquer l'historique" : "Afficher l'historique";
   resetModalPosition('modal-contact-detail');
   document.getElementById('modal-contact-detail').classList.remove('hidden');
 }
@@ -962,6 +988,8 @@ function renderDetailViewFields(c) {
     field('Connu par', c.connu_par),
     field('Type de contact', c.type_contact),
     c.connu_par === 'Recommandation' ? field('Recommandé par', c.recommande_par) : '',
+    c.appel_decouverte_date ? field('Appel découverte', formatSchedule(c.appel_decouverte_date, c.appel_decouverte_heure)) : '',
+    c.rdv_physique_date ? field('RDV physique', formatSchedule(c.rdv_physique_date, c.rdv_physique_heure)) : '',
     fieldHTML('Commentaire', getLatestComment(c.id)),
   ].join('');
 }
@@ -1011,6 +1039,7 @@ function renderDetailEditFields(c) {
       <label>Recommandé par</label>
       <input type="text" id="e-recommande-par" placeholder="Nom de la personne" value="${escapeHtml(c.recommande_par || '')}">
     </div>
+    ${schedulingBlocksHTML('e', 'edit', c)}
     <div class="field" style="margin-bottom:12px;">
       <label>Commentaire</label>
       <div class="rich-toolbar">
@@ -1036,6 +1065,7 @@ function toggleEditMode() {
     document.getElementById('detail-edit-btn').textContent = 'Modifier';
   } else {
     renderDetailEditFields(currentDetailContact);
+    updateAgendaTargetLabel();
     document.getElementById('detail-view-fields').classList.add('hidden');
     document.getElementById('detail-edit-fields').classList.remove('hidden');
     document.getElementById('detail-edit-btn').textContent = 'Annuler la modification';
@@ -1058,6 +1088,10 @@ async function saveEditedFields() {
     type_contact: document.getElementById('e-type-contact').value,
     recommande_par: document.getElementById('e-recommande-par').value.trim() || null,
     commentaire: getRichHTML('e-commentaire') || null,
+    appel_decouverte_date: document.getElementById('e-appel-date').value || null,
+    appel_decouverte_heure: document.getElementById('e-appel-heure').value || null,
+    rdv_physique_date: document.getElementById('e-rdv-date').value || null,
+    rdv_physique_heure: document.getElementById('e-rdv-heure').value || null,
   };
   const { error } = await supabaseClient.from('contacts').update(payload).eq('id', c.id);
   if (error) { alert("Erreur à la modification : " + error.message); return; }
@@ -1073,36 +1107,96 @@ function onDetailStatusChange() {
   const newStatus = document.getElementById('detail-new-status').value;
   document.getElementById('detail-adhesion-fields').classList.toggle('hidden', newStatus !== 'Adhérent');
   document.getElementById('detail-appel-fields').classList.toggle('hidden', newStatus !== 'Appel découverte programmé');
+  document.getElementById('detail-rdv-fields').classList.toggle('hidden', newStatus !== 'RDV physique programmé');
+}
+
+// ---------------------------------------------------------
+// Jour / heure / Google Agenda (appel découverte et RDV physique)
+// ---------------------------------------------------------
+function formatSchedule(date, heure) {
+  if (!date) return '';
+  const d = new Date(date + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const h = (heure || '').slice(0, 5);
+  return d + (h ? ' à ' + h : '');
+}
+
+// Bloc « jour + heure + Google Agenda » pour un type de RDV.
+// prefix : 'f' (nouveau contact) ou 'e' (modification) ; kind : 'appel' ou 'rdv'
+function schedulingBlockHTML(prefix, source, kind, date, heure) {
+  const titre = kind === 'appel' ? 'Appel découverte programmé' : 'RDV physique programmé';
+  const dId = `${prefix}-${kind}-date`, hId = `${prefix}-${kind}-heure`;
+  return `
+    <div class="scheduling-block">
+      <div class="scheduling-title">${titre}</div>
+      <div class="form-grid grid-2" style="margin-bottom:8px;">
+        <div class="field"><label>Jour</label><input type="date" id="${dId}" value="${escapeHtml(date || '')}"></div>
+        <div class="field"><label>Heure</label><input type="time" id="${hId}" value="${escapeHtml((heure || '').slice(0, 5))}"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="btn-secondary" onclick="addSchedulingToCalendar('${kind}', '${dId}', '${hId}', '${source}')">📅 Ajouter à Google Agenda</button>
+        <button type="button" class="btn-secondary" onclick="openAgendaSettings()" title="Choisir l'agenda de destination">⚙ Choisir l'agenda</button>
+      </div>
+      <div class="agenda-target-label"></div>
+    </div>`;
+}
+
+function schedulingBlocksHTML(prefix, source, c) {
+  return schedulingBlockHTML(prefix, source, 'appel', c.appel_decouverte_date, c.appel_decouverte_heure)
+       + schedulingBlockHTML(prefix, source, 'rdv', c.rdv_physique_date, c.rdv_physique_heure);
+}
+
+// Infos du contact utilisées pour remplir l'événement Google Agenda
+function getContactInfoForCalendar(source) {
+  const val = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  if (source === 'form') {
+    return { prenom: val('f-prenom'), nom: val('f-nom'), telephone: val('f-telephone'), email: val('f-email') };
+  }
+  if (source === 'edit' && document.getElementById('e-prenom')) {
+    return { prenom: val('e-prenom'), nom: val('e-nom'), telephone: val('e-telephone'), email: val('e-email') };
+  }
+  return currentDetailContact || {};
 }
 
 // Ouvre Google Agenda avec l'événement déjà rempli (il reste à cliquer sur « Enregistrer » côté Google)
-function addAppelToGoogleCalendar() {
-  const c = currentDetailContact;
-  const date = document.getElementById('detail-appel-date').value;   // AAAA-MM-JJ
-  const heure = document.getElementById('detail-appel-heure').value; // HH:MM
+function addSchedulingToCalendar(kind, dateId, heureId, source) {
+  const c = getContactInfoForCalendar(source);
+  const date = document.getElementById(dateId).value;   // AAAA-MM-JJ
+  const heure = document.getElementById(heureId).value; // HH:MM
   if (!date || !heure) {
-    alert("Renseignez d'abord le jour et l'heure de l'appel.");
+    alert(kind === 'appel'
+      ? "Renseignez d'abord le jour et l'heure de l'appel."
+      : "Renseignez d'abord le jour et l'heure du rendez-vous.");
     return;
   }
 
   const pad = n => String(n).padStart(2, '0');
   const fmt = d => `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+  const duree = kind === 'appel' ? APPEL_DECOUVERTE_DUREE_MIN : RDV_PHYSIQUE_DUREE_MIN;
   const start = new Date(`${date}T${heure}:00`);
-  const end = new Date(start.getTime() + APPEL_DECOUVERTE_DUREE_MIN * 60000);
+  const end = new Date(start.getTime() + duree * 60000);
 
   const nom = `${c.prenom || ''} ${c.nom || ''}`.trim();
   const details = [
     c.telephone ? `Téléphone : ${c.telephone}` : '',
     c.email ? `Email : ${c.email}` : '',
   ].filter(Boolean).join('\n');
+  const titre = kind === 'appel' ? 'Appel découverte' : 'RDV physique';
 
   const url = 'https://calendar.google.com/calendar/render?action=TEMPLATE'
-    + '&text=' + encodeURIComponent(`Appel découverte${nom ? ' — ' + nom : ''}`)
+    + '&text=' + encodeURIComponent(`${titre}${nom ? ' — ' + nom : ''}`)
     + '&dates=' + fmt(start) + '/' + fmt(end)
     + '&details=' + encodeURIComponent(details)
     + '&ctz=' + encodeURIComponent('Europe/Paris')
     + (getAgendaId() ? '&src=' + encodeURIComponent(getAgendaId()) : '');
   window.open(url, '_blank');
+}
+
+// Boutons de la section « Statut » de la fiche contact
+function addAppelToGoogleCalendar() {
+  addSchedulingToCalendar('appel', 'detail-appel-date', 'detail-appel-heure', 'detail');
+}
+function addRdvToGoogleCalendar() {
+  addSchedulingToCalendar('rdv', 'detail-rdv-date', 'detail-rdv-heure', 'detail');
 }
 
 // ---------------------------------------------------------
@@ -1113,8 +1207,8 @@ function getAgendaId() {
 }
 function updateAgendaTargetLabel() {
   const id = getAgendaId();
-  document.getElementById('agenda-target-label').textContent =
-    id ? `Agenda de destination : ${id}` : 'Agenda de destination : agenda par défaut du compte Google connecté';
+  const txt = id ? `Agenda de destination : ${id}` : 'Agenda de destination : agenda par défaut du compte Google connecté';
+  document.querySelectorAll('.agenda-target-label').forEach(el => { el.textContent = txt; });
 }
 function openAgendaSettings() {
   document.getElementById('settings-agenda-id').value = getAgendaId();
@@ -1182,6 +1276,10 @@ async function saveStatusChange() {
     updatePayload.appel_decouverte_date = document.getElementById('detail-appel-date').value || null;
     updatePayload.appel_decouverte_heure = document.getElementById('detail-appel-heure').value || null;
   }
+  if (newStatus === 'RDV physique programmé') {
+    updatePayload.rdv_physique_date = document.getElementById('detail-rdv-date').value || null;
+    updatePayload.rdv_physique_heure = document.getElementById('detail-rdv-heure').value || null;
+  }
 
   if (Object.keys(updatePayload).length > 0) {
     const { error: updError } = await supabaseClient.from('contacts').update(updatePayload).eq('id', c.id);
@@ -1189,8 +1287,8 @@ async function saveStatusChange() {
   }
 
   await loadAllData();
-  openContactDetail(c.id);
-  showToast('Enregistrement effectué');
+  openContactDetail(c.id, { showHistory: true });
+  showToast('Statut enregistré');
 }
 
 function renderHistory(contactId) {
