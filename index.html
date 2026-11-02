@@ -281,6 +281,7 @@
         </select>
       </div>
     </div>
+    <div id="f-scheduling"></div>
     <div class="field" style="margin-bottom:12px;">
       <label>Commentaire</label>
       <div class="rich-toolbar">
@@ -356,7 +357,18 @@
         <button type="button" class="btn-secondary" onclick="addAppelToGoogleCalendar()">📅 Ajouter à Google Agenda</button>
         <button type="button" class="btn-secondary" onclick="openAgendaSettings()" title="Choisir l'agenda de destination">⚙ Choisir l'agenda</button>
       </div>
-      <div id="agenda-target-label" class="agenda-target-label"></div>
+      <div class="agenda-target-label"></div>
+    </div>
+    <div id="detail-rdv-fields" class="hidden" style="margin-bottom:8px;">
+      <div class="form-grid grid-2" style="margin-bottom:8px;">
+        <div class="field"><label>Jour du RDV physique</label><input type="date" id="detail-rdv-date"></div>
+        <div class="field"><label>Heure</label><input type="time" id="detail-rdv-heure"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="btn-secondary" onclick="addRdvToGoogleCalendar()">📅 Ajouter à Google Agenda</button>
+        <button type="button" class="btn-secondary" onclick="openAgendaSettings()" title="Choisir l'agenda de destination">⚙ Choisir l'agenda</button>
+      </div>
+      <div class="agenda-target-label"></div>
     </div>
     <div class="field" style="margin-bottom:8px;">
       <label>Commentaire</label>
