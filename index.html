@@ -112,9 +112,6 @@
       </div>
       <select class="filter-select" id="filter-statut" onchange="renderContactsTable()">
         <option value="">Statut : Tous</option>
-        <option value="Contact entrant">Contact entrant</option>
-        <option value="Appel découverte programmé">Appel découverte programmé</option>
-        <option value="RDV physique programmé">RDV physique programmé</option>
         <option value="Prospect">Prospect</option>
         <option value="Adhérent">Adhérent</option>
         <option value="Non qualifié">Non qualifié</option>
@@ -283,7 +280,7 @@
     </div>
     <div id="f-scheduling"></div>
     <div class="field" style="margin-bottom:12px;">
-      <label>Commentaire</label>
+      <label>Commentaire général</label>
       <div class="rich-toolbar">
         <button type="button" onmousedown="event.preventDefault(); richExec('f-commentaire','bold')"><b>G</b></button>
         <button type="button" onmousedown="event.preventDefault(); richExec('f-commentaire','italic')"><i>I</i></button>
@@ -301,7 +298,7 @@
 
 <!-- ================= MODALE : FICHE DÉTAIL D'UN CONTACT ================= -->
 <div id="modal-contact-detail" class="modal-overlay hidden">
-  <div class="modal-box" style="max-width:680px;">
+  <div class="modal-box" style="max-width:1360px;">
     <div class="modal-header">
       <div class="modal-title">
         <div class="avatar" id="detail-avatar" style="width:34px;height:34px;font-size:13px;">--</div>
@@ -320,96 +317,116 @@
     <div id="detail-view-fields" class="detail-grid"></div>
     <div id="detail-edit-fields" class="hidden"></div>
 
-    <div class="detail-section-title">Appel découverte</div>
-    <div class="rich-toolbar">
-      <button type="button" onmousedown="event.preventDefault(); richExec('detail-appel-decouverte','bold')"><b>G</b></button>
-      <button type="button" onmousedown="event.preventDefault(); richExec('detail-appel-decouverte','italic')"><i>I</i></button>
-      <button type="button" class="rich-color-btn" onmousedown="event.preventDefault(); openColorPicker('detail-appel-decouverte')" title="Couleur du texte">A</button>
-        <input type="color" id="detail-appel-decouverte-color-input" class="rich-color-hidden" onchange="applyColorFromPicker('detail-appel-decouverte', this.value)">
-    </div>
-    <div class="rich-editable" id="detail-appel-decouverte" contenteditable="true" style="min-height:90px;"></div>
-    <div class="form-actions" style="margin-bottom:8px;">
-      <button class="btn-primary" onclick="saveAppelDecouverte()">Enregistrer</button>
-    </div>
-
-    <div class="detail-section-title">Statut</div>
-    <div class="status-row">
-      <span id="detail-current-badge" class="badge">—</span>
-    </div>
-    <div id="detail-appel-info" class="appel-info hidden"></div>
-    <div class="field" style="margin-bottom:8px;">
-      <label>Nouveau statut</label>
-      <select id="detail-new-status" onchange="onDetailStatusChange()">
-        <option value="Contact entrant">Contact entrant</option>
-        <option value="Appel découverte programmé">Appel découverte programmé</option>
-        <option value="RDV physique programmé">RDV physique programmé</option>
-        <option value="Prospect">Prospect</option>
-        <option value="Adhérent">Adhérent</option>
-        <option value="Non qualifié">Non qualifié</option>
-      </select>
-    </div>
-    <div id="detail-appel-fields" class="hidden" style="margin-bottom:8px;">
-      <div class="form-grid grid-2" style="margin-bottom:8px;">
-        <div class="field"><label>Jour de l'appel</label><input type="date" id="detail-appel-date"></div>
-        <div class="field"><label>Heure</label><input type="time" id="detail-appel-heure"></div>
+    <!-- Statut (dans la partie Informations) -->
+    <div class="statut-zone">
+      <div class="statut-zone-head">
+        <label>Statut</label>
+        <span id="detail-current-badge" class="badge">—</span>
       </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <button type="button" class="btn-secondary" onclick="addAppelToGoogleCalendar()">📅 Ajouter à Google Agenda</button>
-        <button type="button" class="btn-secondary" onclick="openAgendaSettings()" title="Choisir l'agenda de destination">⚙ Choisir l'agenda</button>
+      <div class="field" style="margin-bottom:8px;">
+        <select id="detail-new-status" onchange="onDetailStatusChange()">
+          <option value="" disabled>— Choisir un statut —</option>
+          <option value="Prospect">Prospect</option>
+          <option value="Adhérent">Adhérent</option>
+          <option value="Non qualifié">Non qualifié</option>
+        </select>
       </div>
-      <div class="agenda-target-label"></div>
-    </div>
-    <div id="detail-rdv-fields" class="hidden" style="margin-bottom:8px;">
-      <div class="form-grid grid-2" style="margin-bottom:8px;">
-        <div class="field"><label>Jour du RDV physique</label><input type="date" id="detail-rdv-date"></div>
-        <div class="field"><label>Heure</label><input type="time" id="detail-rdv-heure"></div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <button type="button" class="btn-secondary" onclick="addRdvToGoogleCalendar()">📅 Ajouter à Google Agenda</button>
-        <button type="button" class="btn-secondary" onclick="openAgendaSettings()" title="Choisir l'agenda de destination">⚙ Choisir l'agenda</button>
-      </div>
-      <div class="agenda-target-label"></div>
-    </div>
-    <div class="field" style="margin-bottom:8px;">
-      <label>Commentaire</label>
-      <div class="rich-toolbar">
+      <div class="field" style="margin-bottom:8px;">
+        <label>Commentaire du statut</label>
+        <div class="rich-toolbar">
         <button type="button" onmousedown="event.preventDefault(); richExec('detail-status-note','bold')"><b>G</b></button>
         <button type="button" onmousedown="event.preventDefault(); richExec('detail-status-note','italic')"><i>I</i></button>
         <button type="button" class="rich-color-btn" onmousedown="event.preventDefault(); openColorPicker('detail-status-note')" title="Couleur du texte">A</button>
         <input type="color" id="detail-status-note-color-input" class="rich-color-hidden" onchange="applyColorFromPicker('detail-status-note', this.value)">
       </div>
-      <div class="rich-editable" id="detail-status-note" contenteditable="true"></div>
+        <div class="rich-editable" id="detail-status-note" contenteditable="true"></div>
+      </div>
+
+      <div id="detail-adhesion-fields" class="hidden">
+        <div class="form-grid grid-2">
+          <div class="field"><label>Formule</label>
+            <select id="detail-formule">
+              <option value="Bronze">Bronze</option>
+              <option value="Argent">Argent</option>
+              <option value="Or">Or</option>
+            </select>
+          </div>
+          <div class="field"><label>Montant (€)</label><input type="number" id="detail-montant" step="0.01"></div>
+        </div>
+        <div class="form-grid grid-2">
+          <div class="field">
+            <label>Mode de règlement</label>
+            <select id="detail-mode-reglement">
+              <option>Carte bancaire</option><option>Chèque</option><option>Virement</option>
+              <option>Espèces</option>
+            </select>
+          </div>
+          <div class="field"><label>En combien de fois</label><input type="number" id="detail-nb-fois" min="1" value="1"></div>
+        </div>
+        <div class="field">
+          <label>Début du contrat</label>
+          <input type="date" id="detail-date-debut">
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn-primary" onclick="saveStatusChange()">Enregistrer le statut</button>
+      </div>
     </div>
 
-    <div id="detail-adhesion-fields" class="hidden">
-      <div class="form-grid grid-2">
-        <div class="field"><label>Formule</label>
-          <select id="detail-formule">
-            <option value="Bronze">Bronze</option>
-            <option value="Argent">Argent</option>
-            <option value="Or">Or</option>
-          </select>
+    <!-- Appel découverte et RDV physique côte à côte -->
+    <div class="detail-two-cols">
+      <div>
+        <div class="detail-section-title">Appel découverte</div>
+        <div class="form-grid grid-2" style="margin-bottom:8px;">
+          <div class="field"><label>Jour de l'appel</label><input type="date" id="detail-appel-date"></div>
+          <div class="field"><label>Heure</label><input type="time" id="detail-appel-heure"></div>
         </div>
-        <div class="field"><label>Montant (€)</label><input type="number" id="detail-montant" step="0.01"></div>
-      </div>
-      <div class="form-grid grid-2">
-        <div class="field">
-          <label>Mode de règlement</label>
-          <select id="detail-mode-reglement">
-            <option>Carte bancaire</option><option>Chèque</option><option>Virement</option>
-            <option>Espèces</option>
-          </select>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="btn-secondary" onclick="addAppelToGoogleCalendar()">📅 Ajouter à Google Agenda</button>
+          <button type="button" class="btn-secondary" onclick="openAgendaSettings()" title="Choisir l'agenda de destination">⚙ Choisir l'agenda</button>
         </div>
-        <div class="field"><label>En combien de fois</label><input type="number" id="detail-nb-fois" min="1" value="1"></div>
+        <div class="agenda-target-label" style="margin-bottom:10px;"></div>
+        <div class="field" style="margin-bottom:8px;">
+          <label>Notes de l'appel</label>
+          <div class="rich-toolbar">
+        <button type="button" onmousedown="event.preventDefault(); richExec('detail-notes-appel','bold')"><b>G</b></button>
+        <button type="button" onmousedown="event.preventDefault(); richExec('detail-notes-appel','italic')"><i>I</i></button>
+        <button type="button" class="rich-color-btn" onmousedown="event.preventDefault(); openColorPicker('detail-notes-appel')" title="Couleur du texte">A</button>
+        <input type="color" id="detail-notes-appel-color-input" class="rich-color-hidden" onchange="applyColorFromPicker('detail-notes-appel', this.value)">
       </div>
-      <div class="field">
-        <label>Début du contrat</label>
-        <input type="date" id="detail-date-debut">
-      </div>
+          <div class="rich-editable" id="detail-notes-appel" contenteditable="true" style="min-height:90px;"></div>
+        </div>
+        <div class="form-actions" style="margin-bottom:8px;">
+          <button class="btn-primary" onclick="saveAppelDecouverte()">Enregistrer</button>
+        </div>
       </div>
 
-    <div class="form-actions">
-      <button class="btn-primary" onclick="saveStatusChange()">Enregistrer le statut</button>
+      <div>
+        <div class="detail-section-title">RDV physique</div>
+        <div class="form-grid grid-2" style="margin-bottom:8px;">
+          <div class="field"><label>Jour du RDV physique</label><input type="date" id="detail-rdv-date"></div>
+          <div class="field"><label>Heure</label><input type="time" id="detail-rdv-heure"></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="btn-secondary" onclick="addRdvToGoogleCalendar()">📅 Ajouter à Google Agenda</button>
+          <button type="button" class="btn-secondary" onclick="openAgendaSettings()" title="Choisir l'agenda de destination">⚙ Choisir l'agenda</button>
+        </div>
+        <div class="agenda-target-label" style="margin-bottom:10px;"></div>
+        <div class="field" style="margin-bottom:8px;">
+          <label>Notes du RDV physique</label>
+          <div class="rich-toolbar">
+        <button type="button" onmousedown="event.preventDefault(); richExec('detail-notes-rdv','bold')"><b>G</b></button>
+        <button type="button" onmousedown="event.preventDefault(); richExec('detail-notes-rdv','italic')"><i>I</i></button>
+        <button type="button" class="rich-color-btn" onmousedown="event.preventDefault(); openColorPicker('detail-notes-rdv')" title="Couleur du texte">A</button>
+        <input type="color" id="detail-notes-rdv-color-input" class="rich-color-hidden" onchange="applyColorFromPicker('detail-notes-rdv', this.value)">
+      </div>
+          <div class="rich-editable" id="detail-notes-rdv" contenteditable="true" style="min-height:90px;"></div>
+        </div>
+        <div class="form-actions" style="margin-bottom:8px;">
+          <button class="btn-primary" onclick="saveRdvPhysique()">Enregistrer</button>
+        </div>
+      </div>
     </div>
 
     <div class="detail-section-title" style="display:flex;align-items:center;justify-content:space-between;">
