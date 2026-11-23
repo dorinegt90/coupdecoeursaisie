@@ -1,0 +1,45 @@
+# À placer dans le dépôt GitHub à : .github/workflows/supabase-keepalive.yml
+#
+# Empêche la mise en pause du projet Supabase (plan gratuit : pause après 7 jours
+# sans activité) en lui envoyant une requête tous les 5 jours.
+#
+# Prérequis : avoir exécuté keepalive.sql dans le SQL Editor de Supabase (crée la fonction ping()).
+#
+# Secrets à créer dans le dépôt (Settings > Secrets and variables > Actions) :
+#   SUPABASE_URL       ex. https://xxxxxxxx.supabase.co
+#   SUPABASE_ANON_KEY  la clé publique (anon eyJ... ou publishable sb_publishable_...)
+
+name: Supabase keepalive
+
+on:
+  schedule:
+    # Jours 1, 6, 11, 16, 21, 26 et 31 de chaque mois à 07h00 UTC : jamais plus de 5 jours d'écart
+    - cron: '0 7 */5 * *'
+  workflow_dispatch:   # permet aussi de le lancer à la main (onglet Actions > Run workflow)
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Requête vers la base Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          # Appel de la fonction lecture seule ping() (accessible avec la clé anon, aucune donnée exposée).
+          # Ancienne clé anon (eyJ...) : aussi en Authorization. Clé sb_publishable_... : apikey seul.
+          AUTH=()
+          case "$SUPABASE_ANON_KEY" in eyJ*) AUTH=(-H "Authorization: Bearer $SUPABASE_ANON_KEY");; esac
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 30 --retry 3 --retry-delay 10 \
+            -X POST "$SUPABASE_URL/rest/v1/rpc/ping" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            "${AUTH[@]}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+          echo "Réponse HTTP : $code"
+          if [ "$code" -eq 404 ]; then
+            echo "Fonction ping() introuvable : exécutez keepalive.sql dans Supabase."; exit 1
+          fi
+          if [ "$code" -ge 500 ] || [ "$code" -eq 000 ]; then
+            echo "Échec : le projet ne répond pas (en pause ?)."; exit 1
+          fi
