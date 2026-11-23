@@ -22,7 +22,8 @@ const FILTER_LABELS = {
 let contactsSort = { field: 'date_maj', dir: 'desc' };
 let adherentsSort = { field: 'date_maj', dir: 'desc' };
 
-const STATUTS = ['Contact entrant', 'Appel découverte programmé', 'RDV physique programmé', 'Prospect', 'Adhérent', 'Non qualifié'];
+// Seuls vrais statuts proposés dans les listes déroulantes
+const STATUTS = ['Prospect', 'Adhérent', 'Non qualifié'];
 
 // Durée par défaut d'un appel découverte dans Google Agenda (en minutes)
 const APPEL_DECOUVERTE_DUREE_MIN = 30;
@@ -120,7 +121,7 @@ async function handleLogout() {
 async function loadAllData() {
   const [contactsRes, historiqueRes, adhesionsRes, suiviRes] = await Promise.all([
     supabaseClient.from('contacts').select('*').order('created_at', { ascending: false }),
-    supabaseClient.from('statut_historique').select('*').order('date_changement', { ascending: true }),
+    supabaseClient.from('statut').select('*').order('date_changement', { ascending: true }),
     supabaseClient.from('adhesions').select('*'),
     supabaseClient.from('suivi_historique').select('*').order('date_commentaire', { ascending: true }),
   ]);
@@ -146,6 +147,25 @@ function getHistoryFor(contactId) {
     .sort((a, b) => new Date(b.date_changement) - new Date(a.date_changement));
 }
 
+// Ligne de statut la plus récente = état courant du contact (statut + rendez-vous)
+function getCurrentStatutRow(contactId) {
+  const h = getHistoryFor(contactId);
+  return h.length > 0 ? h[0] : null;
+}
+function getStatut(contactId) {
+  const r = getCurrentStatutRow(contactId);
+  return r ? r.statut : 'Prospect';
+}
+function getSchedule(contactId) {
+  const r = getCurrentStatutRow(contactId) || {};
+  return {
+    appel_decouverte_date: r.appel_decouverte_date || null,
+    appel_decouverte_heure: r.appel_decouverte_heure || null,
+    rdv_physique_date: r.rdv_physique_date || null,
+    rdv_physique_heure: r.rdv_physique_heure || null,
+  };
+}
+
 function getLastHistoryDate(contactId) {
   const h = getHistoryFor(contactId);
   if (h.length > 0) return h[0].date_changement;
@@ -168,9 +188,9 @@ function formatDateShort(dateStr) {
 function getLatestComment(contactId) {
   const candidates = [];
   const c = contacts.find(x => x.id === contactId);
-  if (c && c.commentaire) {
-    const h = getHistoryFor(contactId).find(h => h.commentaire === c.commentaire);
-    candidates.push({ date: h ? h.date_changement : c.created_at, text: c.commentaire });
+  if (c && c.commentaire_general) {
+    const h = getHistoryFor(contactId).find(h => h.commentaire === c.commentaire_general);
+    candidates.push({ date: h ? h.date_changement : c.created_at, text: c.commentaire_general });
   }
   const suivi = getSuiviFor(contactId);
   if (suivi.length > 0) {
@@ -450,8 +470,13 @@ function computeStats() {
 
   statutHistorique.forEach(h => {
     if (!inRange(h.date_changement, start, end)) return;
-    if (h.statut === 'Appel découverte programmé') decouverteIds.add(h.contact_id);
+    if (h.statut === 'Appel découverte programmé') decouverteIds.add(h.contact_id); // anciennes lignes d'historique
     if (h.statut === 'Adhérent') signatureIds.add(h.contact_id);
+  });
+  // Appels découverte dont le jour tombe dans la période
+  contacts.forEach(c => {
+    const d = getSchedule(c.id).appel_decouverte_date;
+    if (d && inRange(d + 'T12:00:00', start, end)) decouverteIds.add(c.id);
   });
 
   let ca = 0;
@@ -471,6 +496,10 @@ function getDashboardFilterContacts(type, start, end) {
     const ids = new Set(statutHistorique
       .filter(h => h.statut === 'Appel découverte programmé' && inRange(h.date_changement, start, end))
       .map(h => h.contact_id));
+    contacts.forEach(c => {
+      const d = getSchedule(c.id).appel_decouverte_date;
+      if (d && inRange(d + 'T12:00:00', start, end)) ids.add(c.id);
+    });
     return contacts.filter(c => ids.has(c.id));
   }
   if (type === 'signatures' || type === 'ca') {
@@ -542,13 +571,13 @@ function renderDashboard() {
   recentEl.innerHTML = list.map(c => `
     <div class="recent-row" onclick="openContactDetail('${c.id}')">
       <div class="recent-left">
-        <div class="avatar" style="background:${getAvatarColor(c.statut_actuel)}">${initials(c)}</div>
+        <div class="avatar" style="background:${getAvatarColor(getStatut(c.id))}">${initials(c)}</div>
         <div>
           <div class="recent-name">${escapeHtml(c.prenom)} ${escapeHtml(c.nom)}</div>
           <div class="recent-meta">${escapeHtml(c.connu_par || '—')} · ${c.age || '?'} ans · ${formatDateFR(c.created_at, true)}</div>
         </div>
       </div>
-      <span class="badge ${badgeClass(c.statut_actuel)}">${c.statut_actuel}</span>
+      <span class="badge ${badgeClass(getStatut(c.id))}">${getStatut(c.id)}</span>
     </div>
   `).join('');
 }
@@ -673,7 +702,7 @@ function buildContactRows() {
       id: c.id, created_at: c.created_at, prenom: c.prenom, nom: c.nom, age: c.age,
       email: c.email, telephone: c.telephone, adresse: c.adresse, dept_cp: c.dept_cp, ville: c.ville, pays: c.pays,
       connu_par: c.connu_par, type_contact: c.type_contact, commentaire: getLatestComment(c.id),
-      statut: c.statut_actuel, formule: adh ? adh.type_formule : null,
+      statut: getStatut(c.id), formule: adh ? adh.type_formule : null,
       date_maj: getLastActivityDate(c.id), brevo_synced_at: c.brevo_synced_at,
     };
   });
@@ -734,11 +763,11 @@ function renderContactsTable() {
 // ---------------------------------------------------------
 function buildAdherentRows() {
   return contacts
-    .filter(c => c.statut_actuel === 'Adhérent')
+    .filter(c => getStatut(c.id) === 'Adhérent')
     .map(c => {
       const adh = getAdhesion(c.id);
       return {
-        id: c.id, statut: c.statut_actuel, prenom: c.prenom, nom: c.nom,
+        id: c.id, statut: getStatut(c.id), prenom: c.prenom, nom: c.nom,
         commentaire: getLatestComment(c.id), date_maj: getLastActivityDate(c.id),
         formule: adh ? adh.type_formule : null,
         date_debut_contrat: adh ? adh.date_debut_contrat : null,
@@ -838,30 +867,22 @@ async function saveContactForm() {
     pays: document.getElementById('f-pays').value,
     connu_par: document.getElementById('f-connu-par').value,
     type_contact: document.getElementById('f-type-contact').value,
-    commentaire: getRichHTML('f-commentaire') || null,
-    statut_actuel: 'Contact entrant',
-    appel_decouverte_date: document.getElementById('f-appel-date').value || null,
-    appel_decouverte_heure: document.getElementById('f-appel-heure').value || null,
-    rdv_physique_date: document.getElementById('f-rdv-date').value || null,
-    rdv_physique_heure: document.getElementById('f-rdv-heure').value || null,
+    commentaire_general: getRichHTML('f-commentaire') || null,
   };
-
-  // Si un jour est renseigné, le contact démarre directement au statut correspondant
-  let statutInitial = 'Contact entrant';
-  if (payload.rdv_physique_date) statutInitial = 'RDV physique programmé';
-  else if (payload.appel_decouverte_date) statutInitial = 'Appel découverte programmé';
-  payload.statut_actuel = statutInitial;
 
   const { data, error } = await supabaseClient.from('contacts').insert(payload).select().single();
   if (error) { alert("Erreur à l'enregistrement : " + error.message); return; }
 
-  await supabaseClient.from('statut_historique').insert({
-    contact_id: data.id, statut: 'Contact entrant', date_changement: payload.created_at,
-    commentaire: payload.commentaire,
+  // Premier statut du contact + ses éventuels rendez-vous
+  const { error: statutError } = await supabaseClient.from('statut').insert({
+    contact_id: data.id, statut: 'Prospect', date_changement: payload.created_at,
+    commentaire: payload.commentaire_general,
+    appel_decouverte_date: document.getElementById('f-appel-date').value || null,
+    appel_decouverte_heure: document.getElementById('f-appel-heure').value || null,
+    rdv_physique_date: document.getElementById('f-rdv-date').value || null,
+    rdv_physique_heure: document.getElementById('f-rdv-heure').value || null,
   });
-  if (statutInitial !== 'Contact entrant') {
-    await supabaseClient.from('statut_historique').insert({ contact_id: data.id, statut: statutInitial });
-  }
+  if (statutError) { alert("Contact créé, mais erreur à l'enregistrement du statut : " + statutError.message); }
 
   closeContactForm();
   await loadAllData();
@@ -878,34 +899,23 @@ function openContactDetail(id, opts = {}) {
   currentDetailContact = c;
 
   document.getElementById('detail-avatar').textContent = initials(c);
-  document.getElementById('detail-avatar').style.background = getAvatarColor(c.statut_actuel);
+  const statutCourant = getStatut(c.id);
+  document.getElementById('detail-avatar').style.background = getAvatarColor(statutCourant);
   document.getElementById('detail-name').textContent = `${c.prenom} ${c.nom}`;
-  document.getElementById('detail-current-badge').textContent = c.statut_actuel;
-  document.getElementById('detail-current-badge').className = 'badge ' + badgeClass(c.statut_actuel);
-  document.getElementById('detail-new-status').value = c.statut_actuel;
+  document.getElementById('detail-current-badge').textContent = statutCourant;
+  document.getElementById('detail-current-badge').className = 'badge ' + badgeClass(statutCourant);
+  // Un ancien statut (ex. « Contact entrant ») n'est plus proposé : on demande d'en choisir un
+  document.getElementById('detail-new-status').value = STATUTS.includes(statutCourant) ? statutCourant : '';
   setRichHTML('detail-status-note', '');
-  setRichHTML('detail-appel-decouverte', c.appel_decouverte || '');
+  setRichHTML('detail-notes-appel', c.notes_appel || '');
+  setRichHTML('detail-notes-rdv', c.notes_rdv_physique || '');
 
-  const appelDate = c.appel_decouverte_date || '';
-  const appelHeure = (c.appel_decouverte_heure || '').slice(0, 5);
-  const rdvDate = c.rdv_physique_date || '';
-  const rdvHeure = (c.rdv_physique_heure || '').slice(0, 5);
-  document.getElementById('detail-appel-date').value = appelDate;
-  document.getElementById('detail-appel-heure').value = appelHeure;
-  document.getElementById('detail-rdv-date').value = rdvDate;
-  document.getElementById('detail-rdv-heure').value = rdvHeure;
+  const sch = getSchedule(c.id);
+  document.getElementById('detail-appel-date').value = sch.appel_decouverte_date || '';
+  document.getElementById('detail-appel-heure').value = (sch.appel_decouverte_heure || '').slice(0, 5);
+  document.getElementById('detail-rdv-date').value = sch.rdv_physique_date || '';
+  document.getElementById('detail-rdv-heure').value = (sch.rdv_physique_heure || '').slice(0, 5);
   updateAgendaTargetLabel();
-  const appelInfo = document.getElementById('detail-appel-info');
-  const fmtLong = d => new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-  if (c.statut_actuel === 'Appel découverte programmé' && appelDate) {
-    appelInfo.textContent = `📅 Appel prévu le ${fmtLong(appelDate)}${appelHeure ? ' à ' + appelHeure : ''}`;
-    appelInfo.classList.remove('hidden');
-  } else if (c.statut_actuel === 'RDV physique programmé' && rdvDate) {
-    appelInfo.textContent = `📅 RDV physique prévu le ${fmtLong(rdvDate)}${rdvHeure ? ' à ' + rdvHeure : ''}`;
-    appelInfo.classList.remove('hidden');
-  } else {
-    appelInfo.classList.add('hidden');
-  }
 
   renderDetailViewFields(c);
   document.getElementById('detail-view-fields').classList.remove('hidden');
@@ -988,9 +998,7 @@ function renderDetailViewFields(c) {
     field('Connu par', c.connu_par),
     field('Type de contact', c.type_contact),
     c.connu_par === 'Recommandation' ? field('Recommandé par', c.recommande_par) : '',
-    c.appel_decouverte_date ? field('Appel découverte', formatSchedule(c.appel_decouverte_date, c.appel_decouverte_heure)) : '',
-    c.rdv_physique_date ? field('RDV physique', formatSchedule(c.rdv_physique_date, c.rdv_physique_heure)) : '',
-    fieldHTML('Commentaire', getLatestComment(c.id)),
+    fieldHTML('Commentaire général', getLatestComment(c.id)),
   ].join('');
 }
 
@@ -1039,16 +1047,15 @@ function renderDetailEditFields(c) {
       <label>Recommandé par</label>
       <input type="text" id="e-recommande-par" placeholder="Nom de la personne" value="${escapeHtml(c.recommande_par || '')}">
     </div>
-    ${schedulingBlocksHTML('e', 'edit', c)}
     <div class="field" style="margin-bottom:12px;">
-      <label>Commentaire</label>
+      <label>Commentaire général</label>
       <div class="rich-toolbar">
         <button type="button" onmousedown="event.preventDefault(); richExec('e-commentaire','bold')"><b>G</b></button>
         <button type="button" onmousedown="event.preventDefault(); richExec('e-commentaire','italic')"><i>I</i></button>
         <button type="button" class="rich-color-btn" onmousedown="event.preventDefault(); openColorPicker('e-commentaire')" title="Couleur du texte">A</button>
         <input type="color" id="e-commentaire-color-input" class="rich-color-hidden" onchange="applyColorFromPicker('e-commentaire', this.value)">
       </div>
-      <div class="rich-editable" id="e-commentaire" contenteditable="true">${c.commentaire || ''}</div>
+      <div class="rich-editable" id="e-commentaire" contenteditable="true">${c.commentaire_general || ''}</div>
     </div>
     <div class="form-actions" style="margin-bottom:8px;">
       <button class="btn-secondary" onclick="toggleEditMode()">Annuler</button>
@@ -1087,11 +1094,7 @@ async function saveEditedFields() {
     connu_par: document.getElementById('e-connu-par').value,
     type_contact: document.getElementById('e-type-contact').value,
     recommande_par: document.getElementById('e-recommande-par').value.trim() || null,
-    commentaire: getRichHTML('e-commentaire') || null,
-    appel_decouverte_date: document.getElementById('e-appel-date').value || null,
-    appel_decouverte_heure: document.getElementById('e-appel-heure').value || null,
-    rdv_physique_date: document.getElementById('e-rdv-date').value || null,
-    rdv_physique_heure: document.getElementById('e-rdv-heure').value || null,
+    commentaire_general: getRichHTML('e-commentaire') || null,
   };
   const { error } = await supabaseClient.from('contacts').update(payload).eq('id', c.id);
   if (error) { alert("Erreur à la modification : " + error.message); return; }
@@ -1106,8 +1109,6 @@ async function saveEditedFields() {
 function onDetailStatusChange() {
   const newStatus = document.getElementById('detail-new-status').value;
   document.getElementById('detail-adhesion-fields').classList.toggle('hidden', newStatus !== 'Adhérent');
-  document.getElementById('detail-appel-fields').classList.toggle('hidden', newStatus !== 'Appel découverte programmé');
-  document.getElementById('detail-rdv-fields').classList.toggle('hidden', newStatus !== 'RDV physique programmé');
 }
 
 // ---------------------------------------------------------
@@ -1226,11 +1227,42 @@ function saveAgendaSettings() {
   showToast('Enregistrement effectué');
 }
 
+// Les rendez-vous sont portés par la ligne de statut la plus récente du contact
+async function updateSchedule(contactId, fields) {
+  const row = getCurrentStatutRow(contactId);
+  if (row) {
+    const { error } = await supabaseClient.from('statut').update(fields).eq('id', row.id);
+    return error;
+  }
+  const { error } = await supabaseClient.from('statut').insert({ contact_id: contactId, statut: 'Prospect', ...fields });
+  return error;
+}
+
 async function saveAppelDecouverte() {
   const c = currentDetailContact;
-  const html = getRichHTML('detail-appel-decouverte');
-  const { error } = await supabaseClient.from('contacts').update({ appel_decouverte: html || null }).eq('id', c.id);
+  const notes = getRichHTML('detail-notes-appel');
+  const { error } = await supabaseClient.from('contacts').update({ notes_appel: notes || null }).eq('id', c.id);
   if (error) { alert("Erreur à l'enregistrement : " + error.message); return; }
+  const schError = await updateSchedule(c.id, {
+    appel_decouverte_date: document.getElementById('detail-appel-date').value || null,
+    appel_decouverte_heure: document.getElementById('detail-appel-heure').value || null,
+  });
+  if (schError) { alert("Erreur à l'enregistrement du jour/heure : " + schError.message); return; }
+  await loadAllData();
+  openContactDetail(c.id);
+  showToast('Enregistrement effectué');
+}
+
+async function saveRdvPhysique() {
+  const c = currentDetailContact;
+  const notes = getRichHTML('detail-notes-rdv');
+  const { error } = await supabaseClient.from('contacts').update({ notes_rdv_physique: notes || null }).eq('id', c.id);
+  if (error) { alert("Erreur à l'enregistrement : " + error.message); return; }
+  const schError = await updateSchedule(c.id, {
+    rdv_physique_date: document.getElementById('detail-rdv-date').value || null,
+    rdv_physique_heure: document.getElementById('detail-rdv-heure').value || null,
+  });
+  if (schError) { alert("Erreur à l'enregistrement du jour/heure : " + schError.message); return; }
   await loadAllData();
   openContactDetail(c.id);
   showToast('Enregistrement effectué');
@@ -1239,6 +1271,7 @@ async function saveAppelDecouverte() {
 async function saveStatusChange() {
   const c = currentDetailContact;
   const newStatus = document.getElementById('detail-new-status').value;
+  if (!newStatus) { alert('Merci de choisir un statut.'); return; }
   const commentaireHTML = getRichHTML('detail-status-note');
   const commentaire = stripHTML(commentaireHTML).trim() ? commentaireHTML : null;
 
@@ -1261,28 +1294,17 @@ async function saveStatusChange() {
     if (adhError) { alert("Erreur à l'enregistrement de l'adhésion : " + adhError.message); return; }
   }
 
-  if (newStatus !== c.statut_actuel || commentaire) {
-    const { error: histError } = await supabaseClient.from('statut_historique').insert({
-      contact_id: c.id, statut: newStatus, commentaire,
+  if (newStatus !== getStatut(c.id) || commentaire) {
+    // La nouvelle ligne reprend les rendez-vous en cours
+    const { error: histError } = await supabaseClient.from('statut').insert({
+      contact_id: c.id, statut: newStatus, commentaire, ...getSchedule(c.id),
     });
     if (histError) { alert("Erreur à l'enregistrement du statut : " + histError.message); return; }
   }
 
-  const updatePayload = {};
-  if (newStatus !== c.statut_actuel) updatePayload.statut_actuel = newStatus;
-  // Le dernier commentaire saisi devient le commentaire affiché dans les listes
-  if (commentaire) updatePayload.commentaire = commentaire;
-  if (newStatus === 'Appel découverte programmé') {
-    updatePayload.appel_decouverte_date = document.getElementById('detail-appel-date').value || null;
-    updatePayload.appel_decouverte_heure = document.getElementById('detail-appel-heure').value || null;
-  }
-  if (newStatus === 'RDV physique programmé') {
-    updatePayload.rdv_physique_date = document.getElementById('detail-rdv-date').value || null;
-    updatePayload.rdv_physique_heure = document.getElementById('detail-rdv-heure').value || null;
-  }
-
-  if (Object.keys(updatePayload).length > 0) {
-    const { error: updError } = await supabaseClient.from('contacts').update(updatePayload).eq('id', c.id);
+  // Le dernier commentaire saisi devient le commentaire général affiché dans les listes
+  if (commentaire) {
+    const { error: updError } = await supabaseClient.from('contacts').update({ commentaire_general: commentaire }).eq('id', c.id);
     if (updError) { alert("Erreur à la mise à jour : " + updError.message); return; }
   }
 
@@ -1318,7 +1340,7 @@ function openAdherentDetail(id) {
   currentDetailContact = c;
 
   document.getElementById('adh-avatar').textContent = initials(c);
-  document.getElementById('adh-avatar').style.background = getAvatarColor(c.statut_actuel);
+  document.getElementById('adh-avatar').style.background = getAvatarColor(getStatut(c.id));
   document.getElementById('adh-name').textContent = `${c.prenom} ${c.nom}`;
   document.getElementById('adh-email').textContent = c.email || '—';
   document.getElementById('adh-age').textContent = c.age || '—';
@@ -1619,13 +1641,13 @@ async function performBackup() {
 
   if (formats.includes('json')) {
     const payload = JSON.stringify({
-      contacts, statut_historique: statutHistorique, adhesions, suivi_historique: suiviHistorique,
+      contacts, statut: statutHistorique, adhesions, suivi_historique: suiviHistorique,
     }, null, 2);
     await writeFile(`sauvegarde-coup-de-coeur-${dateStr}.json`, payload, 'application/json', dateStr);
   }
   if (formats.includes('csv')) {
     await writeFile(`contacts-${dateStr}.csv`, toCSV(contacts), 'text/csv', dateStr);
-    await writeFile(`statut_historique-${dateStr}.csv`, toCSV(statutHistorique), 'text/csv', dateStr);
+    await writeFile(`statut-${dateStr}.csv`, toCSV(statutHistorique), 'text/csv', dateStr);
     await writeFile(`adhesions-${dateStr}.csv`, toCSV(adhesions), 'text/csv', dateStr);
     await writeFile(`suivi_historique-${dateStr}.csv`, toCSV(suiviHistorique), 'text/csv', dateStr);
   }
