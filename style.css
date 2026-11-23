@@ -373,3 +373,11 @@ table.data-table tbody tr:hover { background: var(--accent-bg); }
 .agenda-target-label { font-size: 11px; color: var(--ink-soft); margin-top: 6px; }
 .scheduling-block { margin-bottom: 14px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
 .scheduling-title { font-size: 11px; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-soft); margin-bottom: 8px; }
+
+/* ---------- Fiche contact : statut + appel / RDV côte à côte ---------- */
+.statut-zone { margin-top: 14px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; }
+.statut-zone-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.statut-zone-head label { font-size: 11px; text-transform: uppercase; letter-spacing: .03em; color: var(--ink-soft); }
+.detail-two-cols { margin-top: 18px; display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+.detail-two-cols > div { min-width: 0; }
+@media (max-width: 900px) { .detail-two-cols { grid-template-columns: 1fr; } }
